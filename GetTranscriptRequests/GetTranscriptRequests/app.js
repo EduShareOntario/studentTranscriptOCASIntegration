@@ -2,9 +2,18 @@
 
 var https = require('https');
 var request = require('request');
+var DDP = require('ddp');
+var Job = require('meteor-job');
 var config = require('app-config');
 
 console.log('Start Her Up');
+
+// Setup the DDP connection
+var ddp = new DDP({
+    host: config.settings.ddpHost,
+    port: config.settings.ddpPort,
+    use_ejson: true
+});
 
 var authToken;
 

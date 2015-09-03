@@ -6,5 +6,7 @@ module.exports = {
     grantType : 'yourgrantypehere',
     loginUrl: 'https://etms.uat.ocas.ca/api/auth/login',
     requestsNoResponseUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/no_response',
-    transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/'
+    transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
+    ddpHost : '',
+    ddpPort : ' '
 }
