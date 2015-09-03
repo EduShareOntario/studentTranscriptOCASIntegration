@@ -1,0 +1,14 @@
+{
+  "name": "GetTranscriptRequests",
+  "version": "0.0.0",
+  "description": "GetTranscriptRequests",
+  "main": "app.js",
+  "author": {
+    "name": "mwestbrooke",
+    "email": ""
+  },
+  "dependencies": {
+    "app-config": "^0.1.4",
+    "request": "^2.61.0"
+  }
+}
