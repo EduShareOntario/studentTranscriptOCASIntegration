@@ -18,7 +18,7 @@ var ddp = new DDP({
 });
 
 var docId = 'C20150121073680';
-var file_buf = fs.readFileSync('C:\\Users\\mwestbrooke\\Documents\\XmlTranscripts\\July17th_PESC_XML\\transcripts\\130_ZZ_OCAS_35_353900_OCAS_353900_353900.edi.xml.xml', 'ascii');
+var file_buf = fs.readFileSync('C:\\GitHub\\studentTranscriptOCASIntegration\\200207558.xml', 'ascii');
 var authToken;
 
 // Setup the DDP connection
