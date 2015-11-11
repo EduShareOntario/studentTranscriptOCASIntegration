@@ -6,6 +6,7 @@ var DDP = require('ddp');
 var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
+var oracledb = require('oracledb');
 
 console.log('Start Her Up');
 var authToken;
