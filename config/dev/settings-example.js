@@ -11,5 +11,8 @@
     ddpHost : '',
     ddpPort : ' ',
     ddpUser : 'xxxxxxxxxxxxxxxxx',
-    ddpPassword : 'xxxxxxxxxxxxx'
+    ddpPassword : 'xxxxxxxxxxxxx',
+    oracleUserId        : "********",
+    oraclePassword      : "*******",
+    oracleConnectString : "****************************************"
 }

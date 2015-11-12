@@ -5,7 +5,6 @@ var request = require('request');
 var config = require('app-config');
 var oracledb = require('oracledb');
 var xml2js = require('xml2js');
-
 console.log('Start Her Up');
 var authToken;
 
@@ -17,9 +16,9 @@ function matchStudentInfo(transcriptRequest) {
     var birthDate = new Date(transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate);
     oracledb.getConnection(
         {
-            user          : "georgian",
-            password      : "BANNER8",
-            connectString : "testrac01-vip.admin.georgianc.on.ca/GSB4"
+            user          : config.settings.oracleUserId,
+            password      : config.settings.oraclePassword,
+            connectString : config.settings.oracleConnectString
         },
         function (err, connection) {
             if (err) {
@@ -83,9 +82,9 @@ function matchStudentInfo(transcriptRequest) {
 function writeSvtrReq(transcriptRequest,matchIndicator, stateIndicator, birthDate,actionCode) {
     oracledb.getConnection(
         {
-            user          : "georgian",
-            password      : "BANNER8",
-            connectString : "testrac01-vip.admin.georgianc.on.ca/GSB4"
+            user          : config.settings.oracleUserId,
+            password      : config.settings.oraclePassword,
+            connectString : config.settings.oracleConnectString
         },
         function (err, connection) {
             if (err) {
@@ -119,9 +118,9 @@ function writeSvtrReq(transcriptRequest,matchIndicator, stateIndicator, birthDat
 function writeSvrtnte(trackingId, csis, organizationName) {
     oracledb.getConnection(
         {
-            user          : "georgian",
-            password      : "BANNER8",
-            connectString : "testrac01-vip.admin.georgianc.on.ca/GSB4"
+            user          : config.settings.oracleUserId,
+            password      : config.settings.oraclePassword,
+            connectString : config.settings.oracleConnectString
         },
         function (err, connection) {
             if (err) {
@@ -147,9 +146,9 @@ function writeSvrtnte(trackingId, csis, organizationName) {
 function checkForHolds(holdData) {
     oracledb.getConnection(
         {
-            user          : "georgian",
-            password      : "BANNER8",
-            connectString : "testrac01-vip.admin.georgianc.on.ca/GSB4"
+            user          : config.settings.oracleUserId,
+            password      : config.settings.oraclePassword,
+            connectString : config.settings.oracleConnectString
         },
         function (err, connection) {
             if (err) {
