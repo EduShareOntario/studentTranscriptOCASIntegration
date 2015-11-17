@@ -1,0 +1,2275 @@
+/*
+	<VERSION>1.0</VERSION>
+	<FILENAME>svptreq_pkg.pkg</FILENAME>
+	<AUTHOR>Georgian College</AUTHOR>
+	<SUMMARY>The Off Count Report (the big one). </SUMMARY>
+
+	<OVERVIEW>
+		First the data gets loaded into the "GWRFILE" table from the "sqlplus"     
+		procedure that executes this package. 
+
+		Then this procedure retrieves the data from the "GWRFILE" table and we    
+		attempt to populate the "SVRTREQ", "SVRTNTE" and "SVRTDUP" tables.	
+
+		Then we process the data from the "SVRTREQ" and "SVRTNTE" tables and if   
+		no errors are encountered we generate a record in the "SHTTRAN" table  
+		which will cause a transcript to be sent back to OCAS.
+	</OVERVIEW>
+
+	<DEPENDENCIES>
+		
+	</DEPENDENCIES>
+
+	<EXCEPTIONS>
+	</EXCEPTIONS>
+
+	Modification History
+	ID	Date        By		Modification
+	--	----        --		------------
+	<MODIFICATIONS>
+	</MODIFICATIONS>
+*/
+
+CREATE OR REPLACE PACKAGE GEORGIAN.svptreq_pkg AS
+
+ TYPE t_char_array IS TABLE OF VARCHAR2(100)
+  INDEX BY BINARY_INTEGER;
+ TYPE t_nmbr_array IS TABLE OF NUMBER
+  INDEX BY BINARY_INTEGER;
+
+ PROCEDURE process_requests
+ (p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_130_147_flg                   IN  VARCHAR2,
+  p_reason_code                   IN  VARCHAR2,
+  p_svptreq_job_no                IN  NUMBER);
+
+ PROCEDURE get_stvsbgi_desc
+ (p_stvsbgi_fice_desc             IN  OUT VARCHAR2);
+
+ PROCEDURE get_svrtreq_info
+ (p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_svrtreq_state_ind             OUT VARCHAR2,
+  p_svrtreq_completion_ind        OUT VARCHAR2);
+
+ PROCEDURE insert_svrtreq_record
+ (p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_svrtreq_trans_date            IN  VARCHAR2,
+  p_svrtreq_trans_time            IN  VARCHAR2,
+  p_svrtreq_purpose_cde           IN  VARCHAR2,
+  p_svrtreq_action_cde            IN  VARCHAR2,
+  p_svrtreq_birth_date            IN  VARCHAR2,
+  p_svrtreq_gender                IN  VARCHAR2,
+  p_svrtreq_exit_date             IN  VARCHAR2,
+  p_svrtreq_ocas_appnum           IN  VARCHAR2,
+  p_svrtreq_sin                   IN  VARCHAR2,
+  p_svrtreq_surname               IN  VARCHAR2,
+  p_svrtreq_prefix                IN  VARCHAR2,
+  p_svrtreq_firstname             IN  VARCHAR2,
+  p_svrtreq_firstmidname          IN  VARCHAR2,
+  p_svrtreq_secondmidname         IN  VARCHAR2,
+  p_svrtreq_formersurname         IN  VARCHAR2,
+  p_svrtreq_student_no_1          IN  VARCHAR2,
+  p_svrtreq_student_no_2          IN  VARCHAR2,
+  p_svrtreq_student_no_3          IN  VARCHAR2);
+
+ PROCEDURE delete_svrtreq_record
+ (p_svrtreq_bgn02                 IN  VARCHAR2);
+
+ PROCEDURE insert_svrtnte_record
+ (p_svrtnte_bgn02                 IN  VARCHAR2,
+  p_svrtnte_note                  IN  VARCHAR2);
+
+ PROCEDURE delete_svrtnte_record
+ (p_svrtnte_bgn02                 IN  VARCHAR2);
+
+ PROCEDURE match_student_info
+ (p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_svrtreq_birth_date            IN  DATE,
+  p_svrtreq_sex                   IN  VARCHAR2,
+  p_svrtreq_ssn                   IN  VARCHAR2,
+  p_svrtreq_last_name             IN  VARCHAR2,
+  p_svrtreq_first_name            IN  VARCHAR2,
+  p_svrtreq_state_ind             OUT VARCHAR2,
+  p_svrtreq_match_ind             OUT VARCHAR2,
+  p_spriden_pidm                  OUT NUMBER,
+  p_svrtreq_id                    OUT VARCHAR2);
+
+ PROCEDURE insert_svrtdup_record
+ (p_svrtdup_bgn02                 IN  VARCHAR2,
+  p_svrtdup_pidm                  IN  NUMBER);
+
+ PROCEDURE delete_svrtdup_record
+ (p_svrtdup_bgn02                 IN  VARCHAR2);
+
+ PROCEDURE get_spriden_pidm
+ (p_spriden_id                    IN  VARCHAR2,
+  p_spriden_pidm                  OUT NUMBER);
+
+ PROCEDURE check_student_deceased
+ (p_spbpers_pidm                  IN  NUMBER,
+  p_spbpers_dead_ind              OUT VARCHAR2);
+
+ PROCEDURE check_for_holds
+ (p_spriden_pidm                  IN  NUMBER,
+  p_svrtreq_state_ind             OUT VARCHAR2,
+  p_svrtreq_hold_ind              OUT VARCHAR2);
+
+ PROCEDURE determine_send_date
+ (p_svrtreq_action_cde            IN  VARCHAR2,
+  p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_svrtreq_send_date             OUT DATE,
+  p_svrtreq_state_ind             OUT VARCHAR2,
+  p_svrtreq_date_ind              OUT VARCHAR2,
+  p_svrtreq_reason_cde            OUT VARCHAR2,
+  p_error_message                 OUT VARCHAR2);
+
+ PROCEDURE get_svrtnte_note
+ (p_svrtnte_bgn02                 IN  VARCHAR2,
+  p_record_type                   IN  VARCHAR2,
+  p_svrtnte_note                  OUT VARCHAR2);
+
+ PROCEDURE get_stvterm_end_date
+ (p_stvterm_code                  IN  VARCHAR2,
+  p_stvterm_end_date              OUT DATE);
+
+ PROCEDURE insert_shttran_record
+ (p_spriden_pidm                  IN  NUMBER,
+  p_spriden_id                    IN  VARCHAR2,
+  p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_shttran_seq_no                OUT NUMBER);
+
+ PROCEDURE get_shttran_seq_no
+ (p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_svrtreq_id                    IN  VARCHAR2,
+  p_shttran_pidm                  IN  NUMBER,
+  p_shttran_seq_no                OUT NUMBER);
+
+ PROCEDURE get_sgbstdn_term_code_eff
+ (p_sgbstdn_pidm                  IN  NUMBER,
+  p_current_term_code             IN  VARCHAR2,
+  p_sgbstdn_term_code_eff         OUT VARCHAR2);
+
+ PROCEDURE get_requestor_address
+ (p_sobsbgi_sbgi_code             IN  VARCHAR2,
+  p_sobsbgi_street_line1          OUT VARCHAR2,
+  p_sobsbgi_street_line2          OUT VARCHAR2,
+  p_sobsbgi_street_line3          OUT VARCHAR2,
+  p_sobsbgi_city                  OUT VARCHAR2,
+  p_sobsbgi_stat_code             OUT VARCHAR2,
+  p_sobsbgi_zip                   OUT VARCHAR2,
+  p_sobsbgi_natn_code             OUT VARCHAR2);
+
+ PROCEDURE get_sfbetrm_term_code
+ (p_sfbetrm_pidm                  IN  NUMBER,
+  p_current_term_code             IN  VARCHAR2,
+  p_sfbetrm_term_code             OUT VARCHAR2);
+
+ PROCEDURE write_report_lines
+ (p_report_detail_line            IN  VARCHAR2,
+  p_report_page_no                IN  OUT NUMBER,
+  p_report_line_cnt               IN  OUT NUMBER);
+
+ PROCEDURE process_refusals
+ (p_svptreq_job_no                IN  NUMBER);
+
+ PROCEDURE insert_svptreq_record
+ (p_svptreq_id                    IN  NUMBER,
+  p_svptreq_seq_no                IN  OUT NUMBER,
+  p_svptreq_147_data              IN  VARCHAR2);
+
+ PROCEDURE get_gtvsdax_translation_code
+ (p_gtvsdax_external_code         IN  VARCHAR2,
+  p_gtvsdax_external_code_group   IN  VARCHAR2,
+  p_gtvsdax_translation_code      OUT VARCHAR2);
+
+ PROCEDURE get_spbpers_name_prefix
+ (p_spbpers_pidm                  IN  NUMBER,
+  p_spbpers_name_prefix           OUT VARCHAR2);
+
+ PROCEDURE update_svrtreq_record
+ (p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_svrtreq_send_date             IN  DATE,
+  p_svrtreq_state_ind             IN  VARCHAR2,
+  p_svrtreq_match_ind             IN  VARCHAR2,
+  p_svrtreq_hold_ind              IN  VARCHAR2,
+  p_svrtreq_date_ind              IN  VARCHAR2,
+  p_svrtreq_completion_ind        IN  VARCHAR2,
+  p_svrtreq_id                    IN  VARCHAR2,
+  p_svrtreq_seq_no                IN  NUMBER,
+  p_svrtreq_reason_cde            IN  VARCHAR2);
+
+END svptreq_pkg;
+/
+SHOW ERRORS
+
+
+
+CREATE OR REPLACE package body GEORGIAN.svptreq_pkg as
+
+/*----------------------------------------------------------------------------*/
+/* First the data gets loaded into the "GWRFILE" table from the "sqlplus"     */
+/* procedure that executes this package.                                      */
+/*                                                                            */
+/* Then this procedure retrieves the data from the "GWRFILE" table and we     */
+/* attempt to populate the "SVRTREQ", "SVRTNTE" and "SVRTDUP" tables.         */
+/*                                                                            */
+/* Then we process the data from the "SVRTREQ" and "SVRTNTE" tables and if    */
+/* no errors are encountered we generate a record in the "SHTTRAN" table      */
+/* which will cause a transcript to be sent back to OCAS.                     */
+/*----------------------------------------------------------------------------*/
+
+ procedure process_requests
+ (p_svrtreq_bgn02                 in  varchar2,
+  p_130_147_flg                   in  varchar2,
+  p_reason_code                   in  varchar2,
+  p_svptreq_job_no                in  number) is
+
+ v_gwrfile_line                   gwrfile.gwrfile_line%type;
+ v_gwrfile_data                   gwrfile.gwrfile_data%type;
+
+ v_rcrd_err_flg                   number;
+ v_rcrd_len                       number;
+ v_rcrd_fld_cntr                  number;
+ v_rcrd_comma_pos                 number;
+ v_rcrd_tmp_fld                   varchar2(200);
+
+ v_rpt_detl_line                  varchar2(132);
+ v_rpt_page_no                    number;
+ v_rpt_line_cnt                   number;
+ v_rpt_message                    varchar2(50);
+
+ v_treq_purpose                   varchar2(2);
+ v_treq_bgn_nmbr                  varchar2(30);
+ v_treq_trn_date                  varchar2(8);
+ v_treq_trn_time                  varchar2(8);
+ v_treq_actncode                  varchar2(2);
+ v_treq_dob_date                  varchar2(8);
+ v_treq_gender                    varchar2(1);
+ v_treq_exitdate                  varchar2(8);
+ v_treq_ocasnmbr                  varchar2(30);
+ v_treq_sin_nmbr                  varchar2(9);
+ v_treq_stdntid1                  varchar2(30);
+ v_treq_stdntid2                  varchar2(30);
+ v_treq_stdntid3                  varchar2(30);
+
+ v_tnte_note                      varchar2(200);
+
+ t_tnte_note                      t_char_array;
+ t_tnte_idx                       binary_integer;
+ t_tnte_cnt                       binary_integer;
+
+ v_tidn_type                      varchar2(2);
+ v_tidn_name                      varchar2(60);
+ v_tidn_prefix                    varchar2(60);
+ v_tidn_1st_name                  varchar2(60);
+ v_tidn_1st_midl                  varchar2(60);
+ v_tidn_2nd_midl                  varchar2(60);
+ v_tidn_surname                   varchar2(60);
+ v_tidn_former                    varchar2(60);
+
+ v_svrtreq_bgn02                  svrtreq.svrtreq_bgn02%type;
+ v_svrtreq_trans_date             svrtreq.svrtreq_trans_date%type;
+ v_svrtreq_purpose_cde            svrtreq.svrtreq_purpose_cde%type;
+ v_svrtreq_action_cde             svrtreq.svrtreq_action_cde%type;
+ v_svrtreq_birth_date             svrtreq.svrtreq_birth_date%type;
+ v_svrtreq_gender                 svrtreq.svrtreq_gender%type;
+ v_svrtreq_sin                    svrtreq.svrtreq_sin%type;
+ v_svrtreq_surname                svrtreq.svrtreq_surname%type;
+ v_svrtreq_firstname              svrtreq.svrtreq_firstname%type;
+ v_svrtreq_send_date              svrtreq.svrtreq_send_date%type;
+ v_svrtreq_state_ind              svrtreq.svrtreq_state_ind%type;
+ v_svrtreq_match_ind              svrtreq.svrtreq_match_ind%type;
+ v_svrtreq_hold_ind               svrtreq.svrtreq_hold_ind%type;
+ v_svrtreq_date_ind               svrtreq.svrtreq_date_ind%type;
+ v_svrtreq_completion_ind         svrtreq.svrtreq_completion_ind%type;
+ v_svrtreq_id                     svrtreq.svrtreq_id%type;
+
+ v_spriden_pidm                   spriden.spriden_id%type;
+
+ v_spbpers_dead_ind               spbpers.spbpers_dead_ind%type;
+
+ v_svrtreq_reason_cde             svrtreq.svrtreq_reason_cde%type;
+
+ v_shttran_seq_no                 shttran.shttran_seq_no%type;
+
+ cursor c1 is
+  select gwrfile_line,
+         gwrfile_data
+    from gwrfile
+   where gwrfile_sequence        =  p_svptreq_job_no
+     and lower(gwrfile_jobname)  = 'svptreq'
+     and lower(gwrfile_filename) like '%fl146%'
+   order by 1;
+
+ cursor c2 is
+  select svrtreq_bgn02,
+         svrtreq_trans_date,
+         svrtreq_purpose_cde,
+         svrtreq_action_cde,
+         svrtreq_birth_date,
+         svrtreq_gender,
+         svrtreq_sin,
+         svrtreq_surname,
+         svrtreq_firstname,
+         svrtreq_send_date,
+         svrtreq_state_ind,
+         svrtreq_match_ind,
+         svrtreq_hold_ind,
+         svrtreq_date_ind,
+         svrtreq_completion_ind,
+         svrtreq_id
+    from svrtreq
+   where svrtreq_state_ind  != 'X'
+     and svrtreq_completion_ind not in ('130','147')
+     and svrtreq_reason_cde is null
+     for update of svrtreq_state_ind;
+
+ begin
+
+  v_rcrd_err_flg := 0;
+  v_rpt_page_no  := 0;
+  v_rpt_line_cnt := 99;
+  v_treq_purpose := null;
+
+  open c1;
+  loop
+
+   fetch c1
+    into v_gwrfile_line,
+         v_gwrfile_data;
+
+   exit when c1%notfound;
+
+   v_rcrd_len      := length(v_gwrfile_data);
+   v_rcrd_fld_cntr := 1;
+
+   if  upper(substr(v_gwrfile_data,1,4)) = 'TREQ'
+   then
+       if  v_treq_purpose is not null
+       then
+           if  v_rcrd_err_flg = 1
+           then
+               v_rpt_detl_line
+                := substr(rpad(substr(v_treq_bgn_nmbr,1,15),16,' ')||
+                   rpad(v_treq_trn_date,12,' ')||
+                   rpad(v_treq_purpose,7,  ' ')||
+                   rpad(v_treq_actncode,5, ' ')||
+                   rpad(substr(nvl(v_tidn_1st_name,' '),1,15),16,' ')||
+                   rpad(substr(nvl(v_tidn_surname, ' '),1,15),16,' ')||
+                   rpad(v_treq_dob_date,9, ' ')||
+                   rpad(v_treq_sin_nmbr,10,' ')||
+                   v_rpt_message,1,132);
+
+               write_report_lines
+               (v_rpt_detl_line,
+                v_rpt_page_no,
+                v_rpt_line_cnt);
+           elsif  v_treq_purpose != '01'
+              then
+                  insert_svrtreq_record
+                  (v_treq_bgn_nmbr,
+                   v_treq_trn_date,
+                   v_treq_trn_time,
+                   v_treq_purpose,
+                   v_treq_actncode,
+                   v_treq_dob_date,
+                   v_treq_gender,
+                   v_treq_exitdate,
+                   v_treq_ocasnmbr,
+                   v_treq_sin_nmbr,
+                   v_tidn_surname,
+                   v_tidn_prefix,
+                   v_tidn_1st_name,
+                   v_tidn_1st_midl,
+                   v_tidn_2nd_midl,
+                   v_tidn_former,
+                   v_treq_stdntid1,
+                   v_treq_stdntid2,
+                   v_treq_stdntid3);
+
+                  t_tnte_idx := 1;
+
+                  while (t_tnte_idx <= t_tnte_cnt)
+                   loop
+
+                    insert_svrtnte_record
+                    (v_treq_bgn_nmbr,
+                     t_tnte_note(t_tnte_idx));
+
+                    t_tnte_idx := t_tnte_idx + 1;
+
+                   end loop;
+           end if;
+       end if;
+
+       v_rcrd_err_flg  := 0;
+       v_treq_purpose  := null;
+       v_treq_bgn_nmbr := null;
+       v_treq_trn_date := null;
+       v_treq_trn_time := null;
+       v_treq_actncode := null;
+       v_treq_dob_date := null;
+       v_treq_gender   := null;
+       v_treq_exitdate := null;
+       v_treq_ocasnmbr := null;
+       v_treq_sin_nmbr := null;
+       v_treq_stdntid1 := null;
+       v_treq_stdntid2 := null;
+       v_treq_stdntid3 := null;
+       v_tnte_note     := null;
+       t_tnte_cnt      := 0;
+       v_tidn_prefix   := null;
+       v_tidn_1st_name := null;
+       v_tidn_1st_midl := null;
+       v_tidn_2nd_midl := null;
+       v_tidn_surname  := null;
+       v_tidn_former   := null;
+
+       while (v_rcrd_fld_cntr <= 18)
+        loop
+
+         v_rcrd_comma_pos := instr(v_gwrfile_data, '|');
+
+         if  v_rcrd_comma_pos = 0
+         then
+             v_rcrd_tmp_fld := ltrim(rtrim(v_gwrfile_data));
+
+             if  v_rcrd_tmp_fld is not null
+             then
+                 case v_rcrd_fld_cntr
+
+                  when 5
+                  then v_treq_purpose  := rtrim(v_rcrd_tmp_fld);
+                  when 6
+                  then v_treq_bgn_nmbr := rtrim(v_rcrd_tmp_fld);
+                  when 7
+                  then v_treq_trn_date := rtrim(v_rcrd_tmp_fld);
+                  when 8
+                  then v_treq_trn_time := rtrim(v_rcrd_tmp_fld);
+                  when 10
+                  then v_treq_actncode := rtrim(v_rcrd_tmp_fld);
+                  when 11
+                  then v_treq_dob_date := rtrim(v_rcrd_tmp_fld);
+                  when 12
+                  then v_treq_gender   := rtrim(v_rcrd_tmp_fld);
+                  when 13
+                  then v_treq_exitdate := rtrim(v_rcrd_tmp_fld);
+                  when 14
+                  then v_treq_ocasnmbr := rtrim(v_rcrd_tmp_fld);
+                  when 15
+                  then v_treq_sin_nmbr := rtrim(v_rcrd_tmp_fld);
+                  when 16
+                  then v_treq_stdntid1 := rtrim(v_rcrd_tmp_fld);
+                  when 17
+                  then v_treq_stdntid2 := rtrim(v_rcrd_tmp_fld);
+                  when 18
+                  then v_treq_stdntid3 := rtrim(v_rcrd_tmp_fld);
+
+                  else null;
+
+                 end case;
+
+                 v_rcrd_fld_cntr := 25;
+             end if;
+         else
+             v_rcrd_tmp_fld := ltrim(rtrim(substr(v_gwrfile_data, 1, v_rcrd_comma_pos - 1)));
+
+             case v_rcrd_fld_cntr
+
+              when 5
+              then v_treq_purpose  := rtrim(v_rcrd_tmp_fld);
+              when 6
+              then v_treq_bgn_nmbr := rtrim(v_rcrd_tmp_fld);
+              when 7
+              then v_treq_trn_date := rtrim(v_rcrd_tmp_fld);
+              when 8
+              then v_treq_trn_time := rtrim(v_rcrd_tmp_fld);
+              when 10
+              then v_treq_actncode := rtrim(v_rcrd_tmp_fld);
+              when 11
+              then v_treq_dob_date := rtrim(v_rcrd_tmp_fld);
+              when 12
+              then v_treq_gender   := rtrim(v_rcrd_tmp_fld);
+              when 13
+              then v_treq_exitdate := rtrim(v_rcrd_tmp_fld);
+              when 14
+              then v_treq_ocasnmbr := rtrim(v_rcrd_tmp_fld);
+              when 15
+              then v_treq_sin_nmbr := rtrim(v_rcrd_tmp_fld);
+              when 16
+              then v_treq_stdntid1 := rtrim(v_rcrd_tmp_fld);
+              when 17
+              then v_treq_stdntid2 := rtrim(v_rcrd_tmp_fld);
+              when 18
+              then v_treq_stdntid3 := rtrim(v_rcrd_tmp_fld);
+
+              else null;
+
+             end case;
+
+             v_rcrd_fld_cntr := v_rcrd_fld_cntr + 1;
+             v_gwrfile_data  := ltrim(rtrim(substr(v_gwrfile_data, v_rcrd_comma_pos + 1, v_rcrd_len - v_rcrd_comma_pos)));
+             v_rcrd_len      := length(v_gwrfile_data);
+         end if;
+
+        end loop;
+
+       get_svrtreq_info
+       (v_treq_bgn_nmbr,
+        v_svrtreq_state_ind,
+        v_svrtreq_completion_ind);
+
+       if  v_treq_purpose = '01'
+       then
+           if  v_svrtreq_state_ind = 'C'
+           then
+               v_rcrd_err_flg :=  1;
+               v_rpt_message  := 'cannot cancel request already processed';
+           elsif  v_svrtreq_state_ind = 'X'
+              then
+                  v_rcrd_err_flg :=  1;
+                  v_rpt_message  := 'cannot cancel request already cancelled';
+              elsif  v_svrtreq_state_ind is null
+                 then
+                     v_rcrd_err_flg :=  1;
+                     v_rpt_message  := 'cannot cancel request does not exist';
+                 else
+                     update_svrtreq_record
+                     (v_treq_bgn_nmbr,
+                      null,
+                     'X',
+                      null,
+                      null,
+                      null,
+                      null,
+                      null,
+                      null,
+                      null);
+           end if;
+       elsif  v_treq_purpose = '13'
+          then
+              if  v_svrtreq_state_ind is not null
+              then
+                  v_rcrd_err_flg :=  1;
+                  v_rpt_message  := 'cannot create request already exists';
+              end if;
+          elsif  v_treq_purpose = '15'
+             then
+                 if  v_svrtreq_completion_ind = '130'
+                 then
+                     v_rcrd_err_flg :=  1;
+                     v_rpt_message  := 'cannot re-submit request already processed';
+                 elsif  v_svrtreq_state_ind is not null
+                    then
+                        delete_svrtdup_record
+                        (v_treq_bgn_nmbr);
+                        delete_svrtnte_record
+                        (v_treq_bgn_nmbr);
+                        delete_svrtreq_record
+                        (v_treq_bgn_nmbr);
+                 end if;
+       end if;
+   end if;
+
+   if  upper(substr(v_gwrfile_data,1,4)) = 'TNTE'
+   and v_treq_purpose != '01'
+   and v_rcrd_err_flg  =  0
+   then
+       v_tnte_note := null;
+
+       while (v_rcrd_fld_cntr <= 5)
+        loop
+
+         v_rcrd_comma_pos := instr(v_gwrfile_data, '|');
+
+         if  v_rcrd_comma_pos = 0
+         then
+             v_rcrd_tmp_fld := ltrim(rtrim(v_gwrfile_data));
+
+             if  v_rcrd_tmp_fld is not null
+             then
+                 case v_rcrd_fld_cntr
+
+                  when 5
+                  then v_tnte_note := rtrim(v_rcrd_tmp_fld);
+
+                  else null;
+
+                 end case;
+
+                 v_rcrd_fld_cntr := 25;
+             end if;
+         else
+             v_rcrd_tmp_fld := ltrim(rtrim(substr(v_gwrfile_data, 1, v_rcrd_comma_pos - 1)));
+
+             case v_rcrd_fld_cntr
+
+              when 5
+              then v_tnte_note := rtrim(v_rcrd_tmp_fld);
+
+              else null;
+
+             end case;
+
+             v_rcrd_fld_cntr := v_rcrd_fld_cntr + 1;
+             v_gwrfile_data  := ltrim(rtrim(substr(v_gwrfile_data, v_rcrd_comma_pos + 1, v_rcrd_len - v_rcrd_comma_pos)));
+             v_rcrd_len      := length(v_gwrfile_data);
+         end if;
+
+        end loop;
+
+       if  v_tnte_note like 'INSTITUTION%'
+       then
+           v_tnte_note     := rtrim(ltrim(ltrim(v_tnte_note,'INSTITUTION')));
+           v_gwrfile_data  := v_tnte_note;
+           v_rcrd_len      := length(v_gwrfile_data);
+           v_rcrd_fld_cntr := 1;
+
+           while (v_rcrd_fld_cntr <= 10)
+            loop
+
+             v_rcrd_comma_pos := instr(v_gwrfile_data, ':');
+
+             if  v_rcrd_comma_pos = 0
+             then
+                 v_rcrd_tmp_fld := ltrim(rtrim(v_gwrfile_data));
+
+                 if  v_rcrd_tmp_fld is not null
+                 then
+                     t_tnte_cnt              := t_tnte_cnt + 1;
+                     t_tnte_note(t_tnte_cnt) := v_rcrd_tmp_fld;
+                     v_rcrd_fld_cntr         := 25;
+                 end if;
+             else
+                 v_rcrd_tmp_fld          := ltrim(rtrim(substr(v_gwrfile_data, 1, v_rcrd_comma_pos - 1)));
+                 t_tnte_cnt              := t_tnte_cnt + 1;
+                 t_tnte_note(t_tnte_cnt) := v_rcrd_tmp_fld;
+                 v_rcrd_fld_cntr         := v_rcrd_fld_cntr + 1;
+                 v_gwrfile_data          := ltrim(rtrim(substr(v_gwrfile_data, v_rcrd_comma_pos + 1, v_rcrd_len - v_rcrd_comma_pos)));
+                 v_rcrd_len              := length(v_gwrfile_data);
+             end if;
+
+             get_stvsbgi_desc
+             (t_tnte_note(t_tnte_cnt));
+
+            end loop;
+       else
+           t_tnte_cnt              := t_tnte_cnt + 1;
+           t_tnte_note(t_tnte_cnt) := replace(rtrim(ltrim(v_tnte_note)),' ','');
+       end if;
+   end if;
+
+   if  upper(substr(v_gwrfile_data,1,4)) = 'TIDN'
+   and v_treq_purpose != '01'
+   then
+       v_tidn_type := null;
+       v_tidn_name := null;
+
+       while (v_rcrd_fld_cntr <= 6)
+        loop
+
+         v_rcrd_comma_pos := instr(v_gwrfile_data, '|');
+
+         if  v_rcrd_comma_pos = 0
+         then
+             v_rcrd_tmp_fld := ltrim(rtrim(v_gwrfile_data));
+
+             if  v_rcrd_tmp_fld is not null
+             then
+                 case v_rcrd_fld_cntr
+
+                  when 5
+                  then v_tidn_type := rtrim(v_rcrd_tmp_fld);
+                  when 6
+                  then v_tidn_name := rtrim(v_rcrd_tmp_fld);
+
+                  else null;
+
+                 end case;
+
+                 v_rcrd_fld_cntr := 25;
+             end if;
+         else
+             v_rcrd_tmp_fld := ltrim(rtrim(substr(v_gwrfile_data, 1, v_rcrd_comma_pos - 1)));
+
+             case v_rcrd_fld_cntr
+
+              when 5
+              then v_tidn_type := rtrim(v_rcrd_tmp_fld);
+              when 6
+              then v_tidn_name := rtrim(v_rcrd_tmp_fld);
+
+              else null;
+
+             end case;
+
+             v_rcrd_fld_cntr := v_rcrd_fld_cntr + 1;
+             v_gwrfile_data  := ltrim(rtrim(substr(v_gwrfile_data, v_rcrd_comma_pos + 1, v_rcrd_len - v_rcrd_comma_pos)));
+             v_rcrd_len      := length(v_gwrfile_data);
+         end if;
+
+        end loop;
+
+       case v_tidn_type
+
+        when '01'
+        then  v_tidn_prefix   := v_tidn_name;
+        when '02'
+        then  v_tidn_1st_name := v_tidn_name;
+        when '03'
+        then  v_tidn_1st_midl := v_tidn_name;
+        when '04'
+        then  v_tidn_2nd_midl := v_tidn_name;
+        when '05'
+        then  v_tidn_surname  := v_tidn_name;
+        when '15'
+        then  v_tidn_former   := v_tidn_name;
+
+        else  null;
+
+       end case;
+   end if;
+
+  end loop;
+  close c1;
+
+  if  v_treq_purpose is not null
+  then
+      if  v_rcrd_err_flg = 1
+      then
+          v_rpt_detl_line
+           := substr(rpad(substr(v_treq_bgn_nmbr,1,15),16,' ')||
+              rpad(v_treq_trn_date,12,' ')||
+              rpad(v_treq_purpose,7,  ' ')||
+              rpad(v_treq_actncode,5, ' ')||
+              rpad(substr(nvl(v_tidn_1st_name,' '),1,15),16,' ')||
+              rpad(substr(nvl(v_tidn_surname, ' '),1,15),16,' ')||
+              rpad(v_treq_dob_date,9, ' ')||
+              rpad(v_treq_sin_nmbr,10,' ')||
+              v_rpt_message,1,132);
+
+          write_report_lines
+          (v_rpt_detl_line,
+           v_rpt_page_no,
+           v_rpt_line_cnt);
+      else
+          insert_svrtreq_record
+          (v_treq_bgn_nmbr,
+           v_treq_trn_date,
+           v_treq_trn_time,
+           v_treq_purpose,
+           v_treq_actncode,
+           v_treq_dob_date,
+           v_treq_gender,
+           v_treq_exitdate,
+           v_treq_ocasnmbr,
+           v_treq_sin_nmbr,
+           v_tidn_surname,
+           v_tidn_prefix,
+           v_tidn_1st_name,
+           v_tidn_1st_midl,
+           v_tidn_2nd_midl,
+           v_tidn_former,
+           v_treq_stdntid1,
+           v_treq_stdntid2,
+           v_treq_stdntid3);
+
+          t_tnte_idx := 1;
+
+          while (t_tnte_idx <= t_tnte_cnt)
+           loop
+
+            insert_svrtnte_record
+            (v_treq_bgn_nmbr,
+             t_tnte_note(t_tnte_idx));
+
+            t_tnte_idx := t_tnte_idx + 1;
+
+           end loop;
+      end if;
+  end if;
+
+  commit;
+
+  open c2;
+  loop
+
+   fetch c2
+    into v_svrtreq_bgn02,
+         v_svrtreq_trans_date,
+         v_svrtreq_purpose_cde,
+         v_svrtreq_action_cde,
+         v_svrtreq_birth_date,
+         v_svrtreq_gender,
+         v_svrtreq_sin,
+         v_svrtreq_surname,
+         v_svrtreq_firstname,
+         v_svrtreq_send_date,
+         v_svrtreq_state_ind,
+         v_svrtreq_match_ind,
+         v_svrtreq_hold_ind,
+         v_svrtreq_date_ind,
+         v_svrtreq_completion_ind,
+         v_svrtreq_id;
+
+   exit when c2%notfound;
+
+   v_rcrd_err_flg       := 0;
+   v_spriden_pidm       := null;
+   v_svrtreq_reason_cde := null;
+   v_rpt_message        := null;
+
+   if  v_svrtreq_state_ind in ('P','M')
+   then
+       delete_svrtdup_record
+       (v_svrtreq_bgn02);
+
+       if  v_svrtreq_id is null
+       then
+           match_student_info
+           (v_svrtreq_bgn02,
+            v_svrtreq_birth_date,
+            v_svrtreq_gender,
+            v_svrtreq_sin,
+            v_svrtreq_surname,
+            v_svrtreq_firstname,
+            v_svrtreq_state_ind,
+            v_svrtreq_match_ind,
+            v_spriden_pidm,
+            v_svrtreq_id);
+       else
+           v_svrtreq_state_ind := 'H';
+           v_svrtreq_match_ind := 'X';
+       end if;
+
+       if  v_svrtreq_state_ind = 'H'
+       then
+           if  v_spriden_pidm is null
+           then
+               get_spriden_pidm
+               (v_svrtreq_id,
+                v_spriden_pidm);
+           end if;
+
+           check_student_deceased
+           (v_spriden_pidm,
+            v_spbpers_dead_ind);
+
+           if  nvl(v_spbpers_dead_ind,'n') = 'Y'
+           then
+               v_svrtreq_send_date  :=  trunc(sysdate);
+               v_svrtreq_state_ind  := 'C';
+               v_svrtreq_hold_ind   := 'N';
+               v_svrtreq_reason_cde := '12';
+           end if;
+       end if;
+   end if;
+
+   if  v_svrtreq_state_ind = 'H'
+   then
+       if  nvl(v_svrtreq_hold_ind,'~') = 'O'
+       then
+           v_svrtreq_state_ind := 'D';
+       else
+           if  v_spriden_pidm is null
+           then
+               get_spriden_pidm
+               (v_svrtreq_id,
+                v_spriden_pidm);
+           end if;
+
+           check_for_holds
+           (v_spriden_pidm,
+            v_svrtreq_state_ind,
+            v_svrtreq_hold_ind);
+       end if;
+   end if;
+
+   if  v_svrtreq_state_ind = 'D'
+   then
+       determine_send_date
+       (v_svrtreq_action_cde,
+        v_svrtreq_bgn02,
+        v_svrtreq_send_date,
+        v_svrtreq_state_ind,
+        v_svrtreq_date_ind,
+        v_svrtreq_reason_cde,
+        v_rpt_message);
+   end if;
+
+   if  v_rpt_message is null
+   then
+       v_shttran_seq_no := null;
+
+       if  v_svrtreq_state_ind = 'C'
+       and v_svrtreq_send_date  is not null
+       and trunc(v_svrtreq_send_date) <= trunc(sysdate)
+       and v_svrtreq_reason_cde is null
+       then
+           if  v_spriden_pidm is null
+           then
+               get_spriden_pidm
+               (v_svrtreq_id,
+                v_spriden_pidm);
+           end if;
+
+           insert_shttran_record
+           (v_spriden_pidm,
+            v_svrtreq_id,
+            v_svrtreq_bgn02,
+            v_shttran_seq_no);
+           v_svrtreq_completion_ind := '130';
+       end if;
+
+       update_svrtreq_record
+       (v_svrtreq_bgn02,
+        v_svrtreq_send_date,
+        v_svrtreq_state_ind,
+        v_svrtreq_match_ind,
+        v_svrtreq_hold_ind,
+        v_svrtreq_date_ind,
+        v_svrtreq_completion_ind,
+        v_svrtreq_id,
+        v_shttran_seq_no,
+        v_svrtreq_reason_cde);
+   else
+       v_rpt_detl_line
+        := substr(rpad(substr(v_svrtreq_bgn02,1,15),16,' ')||
+           rpad(to_char(v_svrtreq_trans_date,'yyyymmdd'),12,' ')||
+           rpad(v_svrtreq_purpose_cde,7,  ' ')||
+           rpad(v_svrtreq_action_cde,5, ' ')||
+           rpad(substr(v_svrtreq_firstname,1,15),16,' ')||
+           rpad(substr(v_svrtreq_surname, 1,15),16,' ')||
+           rpad(to_char(v_svrtreq_birth_date,'yyyymmdd'),9, ' ')||
+           rpad(v_svrtreq_sin,10,' ')||
+           v_rpt_message,1,132);
+
+       write_report_lines
+       (v_rpt_detl_line,
+        v_rpt_page_no,
+        v_rpt_line_cnt);
+
+       delete_svrtdup_record
+       (v_svrtreq_bgn02);
+
+       delete_svrtnte_record
+       (v_svrtreq_bgn02);
+
+       delete_svrtreq_record
+       (v_svrtreq_bgn02);
+   end if;
+
+  end loop;
+  close c2;
+
+  commit;
+
+ end process_requests;
+
+/*----------------------------------------------------------------------------*/
+/* Get the institution description from the "STVSBGI" table.                  */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_stvsbgi_desc
+ (p_stvsbgi_fice_desc             in  out varchar2) is
+
+ v_stvsbgi_desc                   stvsbgi.stvsbgi_desc%type;
+
+ cursor c3 is
+  select stvsbgi_desc
+    from stvsbgi
+   where stvsbgi_fice = p_stvsbgi_fice_desc;
+
+ begin
+
+  v_stvsbgi_desc := null;
+
+  open c3;
+  fetch c3
+   into v_stvsbgi_desc;
+  close c3;
+
+  if  v_stvsbgi_desc is null
+  then
+      v_stvsbgi_desc  := 'UNKNOWN?';
+  end if;
+
+  p_stvsbgi_fice_desc := 'inst='||p_stvsbgi_fice_desc||'/'||v_stvsbgi_desc;
+
+ end get_stvsbgi_desc;
+
+/*----------------------------------------------------------------------------*/
+/* Get information from an existing "SVRTREQ" record.                         */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_svrtreq_info
+ (p_svrtreq_bgn02                 in  varchar2,
+  p_svrtreq_state_ind             out varchar2,
+  p_svrtreq_completion_ind        out varchar2) is
+
+ cursor c4 is
+  select svrtreq_state_ind,
+         svrtreq_completion_ind
+    from svrtreq
+   where svrtreq_bgn02 = p_svrtreq_bgn02;
+
+ begin
+
+  p_svrtreq_state_ind      := null;
+  p_svrtreq_completion_ind := null;
+
+  open c4;
+  fetch c4
+   into p_svrtreq_state_ind,
+        p_svrtreq_completion_ind;
+  close c4;
+
+ end get_svrtreq_info;
+
+/*----------------------------------------------------------------------------*/
+/* Insert a record into the "SVRTREQ" table.                                  */
+/*----------------------------------------------------------------------------*/
+
+ procedure insert_svrtreq_record
+ (p_svrtreq_bgn02                 in  varchar2,
+  p_svrtreq_trans_date            in  varchar2,
+  p_svrtreq_trans_time            in  varchar2,
+  p_svrtreq_purpose_cde           in  varchar2,
+  p_svrtreq_action_cde            in  varchar2,
+  p_svrtreq_birth_date            in  varchar2,
+  p_svrtreq_gender                in  varchar2,
+  p_svrtreq_exit_date             in  varchar2,
+  p_svrtreq_ocas_appnum           in  varchar2,
+  p_svrtreq_sin                   in  varchar2,
+  p_svrtreq_surname               in  varchar2,
+  p_svrtreq_prefix                in  varchar2,
+  p_svrtreq_firstname             in  varchar2,
+  p_svrtreq_firstmidname          in  varchar2,
+  p_svrtreq_secondmidname         in  varchar2,
+  p_svrtreq_formersurname         in  varchar2,
+  p_svrtreq_student_no_1          in  varchar2,
+  p_svrtreq_student_no_2          in  varchar2,
+  p_svrtreq_student_no_3          in  varchar2) is
+
+ begin
+
+  insert into svrtreq
+       ( svrtreq_bgn02,
+         svrtreq_trans_date,
+         svrtreq_purpose_cde,
+         svrtreq_action_cde,
+         svrtreq_birth_date,
+         svrtreq_gender,
+         svrtreq_exit_date,
+         svrtreq_ocas_appnum,
+         svrtreq_sin,
+         svrtreq_surname,
+         svrtreq_prefix,
+         svrtreq_firstname,
+         svrtreq_firstmidname,
+         svrtreq_secondmidname,
+         svrtreq_formersurname,
+         svrtreq_student_no_1,
+         svrtreq_student_no_2,
+         svrtreq_student_no_3,
+         svrtreq_state_ind,
+         svrtreq_completion_ind,
+         svrtreq_data_origin,
+         svrtreq_user_id,
+         svrtreq_activity_date )
+  values
+       ( p_svrtreq_bgn02,
+         to_date(p_svrtreq_trans_date||rpad(substr(p_svrtreq_trans_time,1,6),6,'0'),'yyyymmddhh24miss'),
+         p_svrtreq_purpose_cde,
+         p_svrtreq_action_cde,
+         to_date(p_svrtreq_birth_date,'yyyymmdd'),
+         p_svrtreq_gender,
+         to_date(p_svrtreq_exit_date, 'yyyymmdd'),
+         p_svrtreq_ocas_appnum,
+         p_svrtreq_sin,
+         p_svrtreq_surname,
+         p_svrtreq_prefix,
+         p_svrtreq_firstname,
+         p_svrtreq_firstmidname,
+         p_svrtreq_secondmidname,
+         p_svrtreq_formersurname,
+         p_svrtreq_student_no_1,
+         p_svrtreq_student_no_2,
+         p_svrtreq_student_no_3,
+        'P',
+        '~',
+        'EDI',
+         user,
+         trunc(sysdate) );
+
+ end insert_svrtreq_record;
+
+/*----------------------------------------------------------------------------*/
+/* Delete a record in the "SVRTREQ" table for the BGN NO in question.         */
+/*----------------------------------------------------------------------------*/
+
+ procedure delete_svrtreq_record
+ (p_svrtreq_bgn02                 in  varchar2) is
+
+ begin
+
+  delete from svrtreq
+   where svrtreq_bgn02 = p_svrtreq_bgn02;
+
+ end delete_svrtreq_record;
+
+/*----------------------------------------------------------------------------*/
+/* Insert a record into the "SVRTNTE" table.                                  */
+/*----------------------------------------------------------------------------*/
+
+ procedure insert_svrtnte_record
+ (p_svrtnte_bgn02                 in  varchar2,
+  p_svrtnte_note                  in  varchar2) is
+
+ begin
+
+  insert into svrtnte
+       ( svrtnte_bgn02,
+         svrtnte_note,
+         svrtnte_data_origin,
+         svrtnte_user_id,
+         svrtnte_activity_date )
+  values
+       ( p_svrtnte_bgn02,
+         decode(substr(p_svrtnte_note,5,4),
+        'DATE','SENDDATE='||substr(p_svrtnte_note,9,8),p_svrtnte_note),
+        'EDI',
+         user,
+         trunc(sysdate) );
+
+ end insert_svrtnte_record;
+
+/*----------------------------------------------------------------------------*/
+/* Delete all records in the "SVRTNTE" table for the BGN NO in question.      */
+/*----------------------------------------------------------------------------*/
+
+ procedure delete_svrtnte_record
+ (p_svrtnte_bgn02                 in  varchar2) is
+
+ begin
+
+  delete from svrtnte
+   where svrtnte_bgn02 = p_svrtnte_bgn02;
+
+ end delete_svrtnte_record;
+
+/*----------------------------------------------------------------------------*/
+/* Try to determine which student the transcript request is for.              */
+/*----------------------------------------------------------------------------*/
+
+ procedure match_student_info
+ (p_svrtreq_bgn02                 in  varchar2,
+  p_svrtreq_birth_date            in  date,
+  p_svrtreq_sex                   in  varchar2,
+  p_svrtreq_ssn                   in  varchar2,
+  p_svrtreq_last_name             in  varchar2,
+  p_svrtreq_first_name            in  varchar2,
+  p_svrtreq_state_ind             out varchar2,
+  p_svrtreq_match_ind             out varchar2,
+  p_spriden_pidm                  out number,
+  p_svrtreq_id                    out varchar2) is
+
+ t_spriden_pidm                   t_nmbr_array;
+ t_spriden_id                     t_char_array;
+ t_spriden_idx                    binary_integer;
+
+ cursor c5 is
+  select distinct b.spriden_pidm,
+         b.spriden_id
+    from spriden b,
+         spbpers a
+   where a.spbpers_ssn               = p_svrtreq_ssn
+     and trunc(a.spbpers_birth_date) = trunc(p_svrtreq_birth_date)
+     and a.spbpers_pidm              = b.spriden_pidm
+     and b.spriden_change_ind is null
+     and gukcmpr.f_compress_name(b.spriden_first_name)
+       = gukcmpr.f_compress_name(p_svrtreq_first_name)
+     and gukcmpr.f_compress_name(b.spriden_last_name)
+       = gukcmpr.f_compress_name(p_svrtreq_last_name);
+
+ cursor c6 is
+  select distinct b.spriden_pidm,
+         b.spriden_id
+    from spriden b,
+         spbpers a
+   where a.spbpers_ssn  = p_svrtreq_ssn
+     and a.spbpers_pidm = b.spriden_pidm
+     and b.spriden_change_ind is null
+     and gukcmpr.f_compress_name(b.spriden_first_name)
+       = gukcmpr.f_compress_name(p_svrtreq_first_name)
+     and gukcmpr.f_compress_name(b.spriden_last_name)
+       = gukcmpr.f_compress_name(p_svrtreq_last_name);
+
+ cursor c7 is
+  select distinct a.spriden_pidm,
+         a.spriden_id
+    from spbpers b,
+         spriden a
+   where a.spriden_search_first_name = upper(p_svrtreq_first_name)
+     and a.spriden_search_last_name  = upper(p_svrtreq_last_name)
+     and a.spriden_change_ind is null
+     and a.spriden_pidm              = b.spbpers_pidm
+     and trunc(b.spbpers_birth_date) = trunc(p_svrtreq_birth_date)
+     and b.spbpers_sex               = p_svrtreq_sex;
+
+ begin
+  log_details('match_student_info',0,'','what are the values',p_svrtreq_birth_date || ' ' || p_svrtreq_sex || ' ' || p_svrtreq_ssn || ' ' || p_svrtreq_last_name || ' ' || p_svrtreq_first_name );
+  
+  
+  p_svrtreq_state_ind  := 'M';
+  p_svrtreq_match_ind  := 'N';
+  p_spriden_pidm       :=  null;
+  p_svrtreq_id         :=  null;
+
+  if  p_svrtreq_birth_date is not null
+  and p_svrtreq_ssn        is not null
+  and p_svrtreq_last_name  is not null
+  and p_svrtreq_first_name is not null
+  then
+      open c5;
+      fetch c5 bulk collect
+       into t_spriden_pidm,
+            t_spriden_id;
+      close c5;
+  end if;
+
+  if  t_spriden_pidm.count < 1
+  and p_svrtreq_ssn        is not null
+  and p_svrtreq_last_name  is not null
+  and p_svrtreq_first_name is not null
+  then
+      open c6;
+      fetch c6 bulk collect
+       into t_spriden_pidm,
+            t_spriden_id;
+      close c6;
+  end if;
+
+  if  t_spriden_pidm.count < 1
+  and p_svrtreq_birth_date is not null
+  and p_svrtreq_sex        is not null
+  and p_svrtreq_last_name  is not null
+  and p_svrtreq_first_name is not null
+  then
+      open c7;
+      fetch c7 bulk collect
+       into t_spriden_pidm,
+            t_spriden_id;
+      close c7;
+  end if;
+
+  if  t_spriden_pidm.count = 1
+  then
+      p_svrtreq_state_ind    := 'H';
+      p_svrtreq_match_ind    := 'X';
+      p_spriden_pidm         :=  t_spriden_pidm(1);
+      p_svrtreq_id           :=  t_spriden_id  (1);
+  elsif  t_spriden_pidm.count >  1
+     then
+         p_svrtreq_match_ind := 'D';
+         t_spriden_idx       :=  1;
+
+         while (t_spriden_idx <= t_spriden_pidm.count)
+          loop
+
+           insert_svrtdup_record
+           (p_svrtreq_bgn02,
+            t_spriden_pidm(t_spriden_idx));
+
+           t_spriden_idx     := t_spriden_idx + 1;
+
+          end loop;
+  end if;
+
+ end match_student_info;
+
+/*----------------------------------------------------------------------------*/
+/* Insert a record into the "SVRTDUP" table.                                  */
+/*----------------------------------------------------------------------------*/
+
+ procedure insert_svrtdup_record
+ (p_svrtdup_bgn02                 in  varchar2,
+  p_svrtdup_pidm                  in  number) is
+
+ begin
+
+  insert into svrtdup
+       ( svrtdup_bgn02,
+         svrtdup_pidm,
+         svrtdup_data_origin,
+         svrtdup_user_id,
+         svrtdup_activity_date )
+  values
+       ( p_svrtdup_bgn02,
+         p_svrtdup_pidm,
+        'EDI',
+         user,
+         trunc(sysdate) );
+
+ end insert_svrtdup_record;
+
+/*----------------------------------------------------------------------------*/
+/* Delete all records in the "SVRTDUP" table for the BGN NO in question.      */
+/*----------------------------------------------------------------------------*/
+
+ procedure delete_svrtdup_record
+ (p_svrtdup_bgn02                 in  varchar2) is
+
+ begin
+
+  delete from svrtdup
+   where svrtdup_bgn02 = p_svrtdup_bgn02;
+
+ end delete_svrtdup_record;
+
+/*----------------------------------------------------------------------------*/
+/* Check to see if the student has been flagged as deceased.                  */
+/*----------------------------------------------------------------------------*/
+
+ procedure check_student_deceased
+ (p_spbpers_pidm                  in  number,
+  p_spbpers_dead_ind              out varchar2) is
+
+ cursor c9 is
+  select upper(nvl(spbpers_dead_ind,'n'))
+    from spbpers
+   where spbpers_pidm = p_spbpers_pidm
+     and nvl(spbpers_dead_ind,'n') = 'Y';
+
+ begin
+
+  p_spbpers_dead_ind := null;
+
+  open c9;
+  fetch c9
+   into p_spbpers_dead_ind;
+  close c9;
+
+ end check_student_deceased;
+
+/*----------------------------------------------------------------------------*/
+/* Check to see if a hold has been placed on the student's transcript.        */
+/*----------------------------------------------------------------------------*/
+
+ procedure check_for_holds
+ (p_spriden_pidm                  in  number,
+  p_svrtreq_state_ind             out varchar2,
+  p_svrtreq_hold_ind              out varchar2) is
+
+ v_tbraccd_balance number;
+
+ cursor c10 is
+  select 'H'
+    from stvhldd b,
+         sprhold a
+   where a.sprhold_pidm = p_spriden_pidm
+     and trunc(sysdate)
+ between trunc(a.sprhold_from_date)
+     and trunc(a.sprhold_to_date)
+     and nvl(a.sprhold_release_ind,'n')   != 'Y'
+     and a.sprhold_hldd_code               =  b.stvhldd_code
+     and nvl(b.stvhldd_trans_hold_ind,'n') = 'Y';
+
+ cursor c11 is
+  select nvl(sum(tbraccd_balance),0)
+    from tbraccd
+   where tbraccd_pidm = p_spriden_pidm;
+
+ begin
+
+  p_svrtreq_state_ind := 'H';
+  p_svrtreq_hold_ind  := 'N';
+
+  open c10;
+  fetch c10
+   into p_svrtreq_hold_ind;
+  close c10;
+
+  if  p_svrtreq_hold_ind = 'N'
+  then
+      v_tbraccd_balance := 0;
+
+      open c11;
+      fetch c11
+       into v_tbraccd_balance;
+      close c11;
+
+      if  v_tbraccd_balance > 0
+      then
+          p_svrtreq_hold_ind  := '$';
+      else
+          p_svrtreq_state_ind := 'D';
+      end if;
+  end if;
+
+ end check_for_holds;
+
+/*----------------------------------------------------------------------------*/
+/* Determine what the value of the "senddate" field should be.                */
+/*----------------------------------------------------------------------------*/
+
+ procedure determine_send_date
+ (p_svrtreq_action_cde            in  varchar2,
+  p_svrtreq_bgn02                 in  varchar2,
+  p_svrtreq_send_date             out date,
+  p_svrtreq_state_ind             out varchar2,
+  p_svrtreq_date_ind              out varchar2,
+  p_svrtreq_reason_cde            out varchar2,
+  p_error_message                 out varchar2) is
+
+ v_svrtnte_data_value             svrtnte.svrtnte_note%type;
+ v_gtvsdax_term_code              gtvsdax.gtvsdax_translation_code%type;
+ v_gtvsdax_term_date_offset       gtvsdax.gtvsdax_translation_code%type;
+ v_term_date_offset               number;
+
+ begin
+
+  p_svrtreq_send_date  :=  null;
+  p_svrtreq_state_ind  := 'D';
+  p_svrtreq_date_ind   :=  null;
+  p_svrtreq_reason_cde :=  null;
+  p_error_message      :=  null;
+
+  if  p_svrtreq_action_cde  = 'R4'
+  then
+      p_svrtreq_state_ind  := 'C';
+      p_svrtreq_date_ind   := 'R4';
+      p_svrtreq_reason_cde := '48';
+  end if;
+
+  if  p_svrtreq_action_cde  = 'R2'
+  then
+      p_svrtreq_send_date  :=  trunc(sysdate);
+      p_svrtreq_state_ind  := 'C';
+  end if;
+
+  if  p_svrtreq_action_cde  = 'OT'
+  then
+      get_svrtnte_note
+      (p_svrtreq_bgn02,
+      'SENDDATE=',
+       v_svrtnte_data_value);
+
+      if  v_svrtnte_data_value is null
+      then
+          p_error_message     := 'TNTE - SENDDATE= record not found';
+      else
+          p_svrtreq_send_date :=  to_date(v_svrtnte_data_value,'yyyymmdd');
+          p_svrtreq_state_ind := 'C';
+
+          if  trunc(p_svrtreq_send_date) > trunc(sysdate)
+          then
+              p_svrtreq_reason_cde := '48';
+          end if;
+      end if;
+  end if;
+
+  if  p_svrtreq_action_cde = 'R3'
+  then
+      get_svrtnte_note
+      (p_svrtreq_bgn02,
+      'TERM=',
+       v_svrtnte_data_value);
+
+      if  v_svrtnte_data_value is null
+      then
+          p_error_message := 'TNTE - TERM= record not found';
+      else
+          if  nvl(substr(p_svrtreq_bgn02,1,1),'~') = 'C'
+          then
+              get_gtvsdax_translation_code
+              (v_svrtnte_data_value,
+              'TERM',
+               v_gtvsdax_term_code);
+          else
+              get_gtvsdax_translation_code
+              (v_svrtnte_data_value,
+              'TERMU',
+               v_gtvsdax_term_code);
+          end if;
+
+          if  v_gtvsdax_term_code is null
+          then
+              p_svrtreq_date_ind := 'IT';
+          else
+              get_stvterm_end_date
+              (v_gtvsdax_term_code,
+               p_svrtreq_send_date);
+
+              if  p_svrtreq_send_date is null
+              then
+                  p_svrtreq_date_ind  := 'IT';
+              else
+                  p_svrtreq_state_ind := 'C';
+
+                  get_gtvsdax_translation_code
+                  (null,
+                   'TERM DATE OFFSET',
+                   v_gtvsdax_term_date_offset);
+
+                  if  v_gtvsdax_term_date_offset is not null
+                  then
+                      if  substr(v_gtvsdax_term_date_offset,1,1) in ('+','-')
+                      then
+                          v_term_date_offset := to_number(substr(v_gtvsdax_term_date_offset,2,10));
+
+                          if  substr(v_gtvsdax_term_date_offset,1,1) = '-'
+                          then
+                              v_term_date_offset := v_term_date_offset * -1;
+                          end if;
+                      else
+                          v_term_date_offset := to_number(v_gtvsdax_term_date_offset);
+                      end if;
+
+                      p_svrtreq_send_date := p_svrtreq_send_date + v_term_date_offset;
+                  end if;
+
+                  if  trunc(p_svrtreq_send_date) > trunc(sysdate)
+                  then
+                      p_svrtreq_reason_cde := '48';
+                  end if;
+              end if;
+          end if;
+      end if;
+  end if;
+
+ end determine_send_date;
+
+/*----------------------------------------------------------------------------*/
+/* Get the note field from the "SVRTNTE" table.                               */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_svrtnte_note
+ (p_svrtnte_bgn02                 in  varchar2,
+  p_record_type                   in  varchar2,
+  p_svrtnte_note                  out varchar2) is
+
+ cursor c12 is
+  select substr(svrtnte_note,instr(svrtnte_note,'=')+1,8)
+    from svrtnte
+   where svrtnte_bgn02 = p_svrtnte_bgn02
+     and svrtnte_note like p_record_type||'%';
+
+ begin
+
+  p_svrtnte_note := null;
+
+  open c12;
+  fetch c12
+   into p_svrtnte_note;
+  close c12;
+
+ end get_svrtnte_note;
+
+/*----------------------------------------------------------------------------*/
+/* Get the term end date from the "STVTERM" table.                            */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_stvterm_end_date
+ (p_stvterm_code                  in  varchar2,
+  p_stvterm_end_date              out date) is
+
+ cursor c13 is
+  select trunc(stvterm_end_date)
+    from stvterm
+   where stvterm_code = p_stvterm_code;
+
+ begin
+
+  p_stvterm_end_date := null;
+
+  open c13;
+  fetch c13
+   into p_stvterm_end_date;
+  close c13;
+
+ end get_stvterm_end_date;
+
+/*----------------------------------------------------------------------------*/
+/* Insert a record into the "SHTTRAN" table.                                  */
+/*----------------------------------------------------------------------------*/
+
+ procedure insert_shttran_record
+ (p_spriden_pidm                  in  number,
+  p_spriden_id                    in  varchar2,
+  p_svrtreq_bgn02                 in  varchar2,
+  p_shttran_seq_no                out number) is
+
+  v_current_term_code             stvterm.stvterm_code%type;
+  v_sgbstdn_term_code_eff         sgbstdn.sgbstdn_term_code_eff%type;
+  v_shttran_sbgi_code             shttran.shttran_sbgi_code%type;
+  v_sobsbgi_street_line1          sobsbgi.sobsbgi_street_line1%type;
+  v_sobsbgi_street_line2          sobsbgi.sobsbgi_street_line2%type;
+  v_sobsbgi_street_line3          sobsbgi.sobsbgi_street_line3%type;
+  v_sobsbgi_city                  sobsbgi.sobsbgi_city%type;
+  v_sobsbgi_stat_code             sobsbgi.sobsbgi_stat_code%type;
+  v_sobsbgi_zip                   sobsbgi.sobsbgi_zip%type;
+  v_sobsbgi_natn_code             sobsbgi.sobsbgi_natn_code%type;
+  v_sfbetrm_term_code             sfbetrm.sfbetrm_term_code%type;
+  v_gtvsdax_tprt_code             shttran.shttran_tprt_code%type;
+
+ begin
+
+  get_shttran_seq_no
+  (p_svrtreq_bgn02,
+   p_spriden_id,
+   p_spriden_pidm,
+   p_shttran_seq_no);
+
+  gc_common_pkg.pw_get_current_term_code
+  (v_current_term_code);
+
+  v_current_term_code := substr(v_current_term_code,1,5)||'5';
+
+  get_sgbstdn_term_code_eff
+  (p_spriden_pidm,
+   v_current_term_code,
+   v_sgbstdn_term_code_eff);
+
+  if  substr(p_svrtreq_bgn02,1,1) = 'C'
+  then
+      v_shttran_sbgi_code := 'OCAS';
+  else
+      v_shttran_sbgi_code := 'OUAC';
+  end if;
+
+  get_requestor_address
+  (v_shttran_sbgi_code,
+   v_sobsbgi_street_line1,
+   v_sobsbgi_street_line2,
+   v_sobsbgi_street_line3,
+   v_sobsbgi_city,
+   v_sobsbgi_stat_code,
+   v_sobsbgi_zip,
+   v_sobsbgi_natn_code);
+
+  get_gtvsdax_translation_code
+  (null,
+   'TPRT',
+   v_gtvsdax_tprt_code);
+
+  get_sfbetrm_term_code
+  (p_spriden_pidm,
+   v_current_term_code,
+   v_sfbetrm_term_code);
+
+  insert into shttran
+       ( shttran_user,
+         shttran_pidm,
+         shttran_seq_no,
+         shttran_id,
+         shttran_type,
+         shttran_term,
+         shttran_levl_code,
+         shttran_addr_name,
+         shttran_street1,
+         shttran_street2,
+         shttran_street3,
+         shttran_city,
+         shttran_stat_code,
+         shttran_zip,
+         shttran_request_date,
+         shttran_activity_date,
+         shttran_tprt_code,
+         shttran_no_copies,
+         shttran_official_ind,
+         shttran_term_code_in_prg,
+         shttran_natn_code,
+         shttran_sbgi_code,
+         shttran_hold_grde_ind,
+         shttran_hold_degr_ind )
+  values
+       ( user,
+         p_spriden_pidm,
+         p_shttran_seq_no,
+         p_spriden_id,
+        'E',
+         v_sgbstdn_term_code_eff,
+        'AL',
+         v_shttran_sbgi_code,
+         v_sobsbgi_street_line1,
+         v_sobsbgi_street_line2,
+         v_sobsbgi_street_line3,
+         v_sobsbgi_city,
+         v_sobsbgi_stat_code,
+         v_sobsbgi_zip,
+         trunc(sysdate),
+         trunc(sysdate),
+         v_gtvsdax_tprt_code,
+         1,
+        'Y',
+         v_sfbetrm_term_code,
+         v_sobsbgi_natn_code,
+         v_shttran_sbgi_code,
+        'N',
+        'N' );
+
+ end insert_shttran_record;
+
+/*----------------------------------------------------------------------------*/
+/* Get the next sequence number for the student from the "SHTTRAN" table.     */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_shttran_seq_no
+ (p_svrtreq_bgn02                 in  varchar2,
+  p_svrtreq_id                    in  varchar2,
+  p_shttran_pidm                  in  number,
+  p_shttran_seq_no                out number) is
+
+ cursor c14 is
+  select nvl(max(svrtreq_seq_no),0) + 1
+    from svrtreq
+   where svrtreq_bgn02 = p_svrtreq_bgn02
+  union
+  select nvl(max(svrtreq_seq_no),0) + 1
+    from svrtreq
+   where svrtreq_id    = p_svrtreq_id
+  union
+  select nvl(max(shttran_seq_no),0) + 1
+    from shttran
+   where shttran_pidm  = p_shttran_pidm
+   order by 1 desc;
+
+ begin
+
+  p_shttran_seq_no := 1;
+
+  open c14;
+  fetch c14
+   into p_shttran_seq_no;
+  close c14;
+
+ end get_shttran_seq_no;
+
+/*----------------------------------------------------------------------------*/
+/* Get the most recent term code for the student from the "SGBSTDN" table.    */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_sgbstdn_term_code_eff
+ (p_sgbstdn_pidm                  in  number,
+  p_current_term_code             in  varchar2,
+  p_sgbstdn_term_code_eff         out varchar2) is
+
+ cursor c15 is
+  select sgbstdn_term_code_eff
+    from saturn.sgbstdn
+   where sgbstdn_pidm = p_sgbstdn_pidm
+     and sgbstdn_term_code_eff
+       = (select max(sgbstdn_term_code_eff)
+            from saturn.sgbstdn
+           where sgbstdn_pidm = p_sgbstdn_pidm
+             and sgbstdn_term_code_eff <= p_current_term_code);
+
+ begin
+
+  p_sgbstdn_term_code_eff := null;
+
+  open c15;
+  fetch c15
+   into p_sgbstdn_term_code_eff;
+  close c15;
+
+ end get_sgbstdn_term_code_eff;
+
+/*----------------------------------------------------------------------------*/
+/* Get the requestor's address information from the "SOBSBGI" table.          */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_requestor_address
+ (p_sobsbgi_sbgi_code             in  varchar2,
+  p_sobsbgi_street_line1          out varchar2,
+  p_sobsbgi_street_line2          out varchar2,
+  p_sobsbgi_street_line3          out varchar2,
+  p_sobsbgi_city                  out varchar2,
+  p_sobsbgi_stat_code             out varchar2,
+  p_sobsbgi_zip                   out varchar2,
+  p_sobsbgi_natn_code             out varchar2) is
+
+ cursor c16 is
+  select a.sobsbgi_street_line1,
+         a.sobsbgi_street_line2,
+         a.sobsbgi_street_line3,
+         a.sobsbgi_city,
+         a.sobsbgi_stat_code,
+         a.sobsbgi_zip,
+         a.sobsbgi_natn_code
+    from sobsbgi a
+   where a.sobsbgi_sbgi_code = p_sobsbgi_sbgi_code;
+
+ begin
+
+  p_sobsbgi_street_line1 := null;
+  p_sobsbgi_street_line2 := null;
+  p_sobsbgi_street_line3 := null;
+  p_sobsbgi_city         := null;
+  p_sobsbgi_stat_code    := null;
+  p_sobsbgi_zip          := null;
+  p_sobsbgi_natn_code    := null;
+
+  open c16;
+  fetch c16
+   into p_sobsbgi_street_line1,
+        p_sobsbgi_street_line2,
+        p_sobsbgi_street_line3,
+        p_sobsbgi_city,
+        p_sobsbgi_stat_code,
+        p_sobsbgi_zip,
+        p_sobsbgi_natn_code;
+  close c16;
+
+ end get_requestor_address;
+
+/*----------------------------------------------------------------------------*/
+/* Get the student's most recent term code from the "SFBETRM" table.          */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_sfbetrm_term_code
+ (p_sfbetrm_pidm                  in  number,
+  p_current_term_code             in  varchar2,
+  p_sfbetrm_term_code             out varchar2) is
+
+ cursor c17 is
+  select max(sfbetrm_term_code)
+    from sfbetrm
+   where sfbetrm_pidm       = p_sfbetrm_pidm
+     and sfbetrm_term_code <= p_current_term_code;
+
+ begin
+
+  p_sfbetrm_term_code := null;
+
+  open c17;
+  fetch c17
+   into p_sfbetrm_term_code;
+  close c17;
+
+ end get_sfbetrm_term_code;
+
+/*----------------------------------------------------------------------------*/
+/* Write lines to the output report.                                          */
+/*----------------------------------------------------------------------------*/
+
+ procedure write_report_lines
+ (p_report_detail_line            in  varchar2,
+  p_report_page_no                in  out number,
+  p_report_line_cnt               in  out number) is
+
+ begin
+
+  if  p_report_line_cnt >= 85
+  then
+      p_report_page_no  := p_report_page_no + 1;
+      dbms_output.put_line('SVPTREQ                                                   GEORGIAN COLLEGE                                                PAGE:   '||lpad(to_char(p_report_page_no),2,'0'));
+      dbms_output.put_line(to_char(sysdate,'yyyy-Mon-dd hh24:mi')||'                            EDI Student Transcript Request Error Report');
+      dbms_output.put_line('.');
+      dbms_output.put_line('.                 Trans  Purpose Action                                   Birth');
+      dbms_output.put_line('BGN02 Number      Date     Code   Code  First Name      Last Name         Date      SIN    Message');
+      dbms_output.put_line('--------------- -------- ------- ------ --------------- --------------- -------- --------- -----------------------------------------');
+      p_report_line_cnt := 6;
+  end if;
+
+  dbms_output.put_line(p_report_detail_line);
+  p_report_line_cnt := p_report_line_cnt + 1;
+
+ end write_report_lines;
+
+/*----------------------------------------------------------------------------*/
+/* Process the "SVRTREQ" records where the reason code is NOT blank (this     */
+/* means that the student's request for a transcript has been refused for     */
+/* whatever reason) and write the information to the "sedi147.dat" file.      */
+/*----------------------------------------------------------------------------*/
+
+ procedure process_refusals
+ (p_svptreq_job_no                in  number) is
+
+ v_gwrfile_line                   gwrfile.gwrfile_line%type;
+ v_gwrfile_data                   gwrfile.gwrfile_data%type;
+
+ v_svrtreq_bgn02                  svrtreq.svrtreq_bgn02%type;
+ v_svrtreq_trans_date             varchar2(8);
+ v_svrtreq_trans_time             varchar2(6);
+ v_svrtreq_ocas_appnum            svrtreq.svrtreq_ocas_appnum%type;
+ v_svrtreq_surname                svrtreq.svrtreq_surname%type;
+ v_svrtreq_prefix                 svrtreq.svrtreq_prefix%type;
+ v_svrtreq_firstname              svrtreq.svrtreq_firstname%type;
+ v_svrtreq_student_no_1           svrtreq.svrtreq_student_no_1%type;
+ v_svrtreq_student_no_2           svrtreq.svrtreq_student_no_2%type;
+ v_svrtreq_student_no_3           svrtreq.svrtreq_student_no_3%type;
+ v_svrtreq_id                     svrtreq.svrtreq_id%type;
+ v_svrtreq_reason_cde             svrtreq.svrtreq_reason_cde%type;
+
+ v_ocas_ouac_code                 varchar2(4);
+
+ v_svptreq_seq_no                 number;
+ v_svptreq_147_data               varchar2(132);
+
+ v_gtvsdax_inst_code              varchar2(15);
+
+ v_spriden_pidm                   spriden.spriden_id%type;
+
+ v_svrtreq_completion_ind         svrtreq.svrtreq_completion_ind%type;
+
+ cursor c18 is
+  select gwrfile_line,
+         gwrfile_data
+    from gwrfile
+   where gwrfile_sequence        =  p_svptreq_job_no
+     and lower(gwrfile_jobname)  = 'svptreq'
+     and lower(gwrfile_filename) like '%sedi147%'
+   order by 1;
+
+ cursor c19 is
+  select svrtreq_bgn02,
+         to_char(sysdate,'yyyymmdd'),
+         to_char(sysdate,'hh24miss'),
+         svrtreq_ocas_appnum,
+         svrtreq_surname,
+         svrtreq_prefix,
+         svrtreq_firstname,
+         svrtreq_student_no_1,
+         svrtreq_student_no_2,
+         svrtreq_student_no_3,
+         svrtreq_id,
+         svrtreq_reason_cde
+    from svrtreq
+   where svrtreq_state_ind  != 'X'
+     and svrtreq_completion_ind not in ('130','147')
+     and svrtreq_reason_cde is not null
+     for update of svrtreq_state_ind;
+
+ begin
+
+  v_svptreq_seq_no := 0;
+
+  open c18;
+  loop
+
+   fetch c18
+    into v_gwrfile_line,
+         v_gwrfile_data;
+
+   exit when c18%notfound;
+
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_gwrfile_data);
+
+  end loop;
+  close c18;
+
+  open c19;
+  loop
+
+   fetch c19
+    into v_svrtreq_bgn02,
+         v_svrtreq_trans_date,
+         v_svrtreq_trans_time,
+         v_svrtreq_ocas_appnum,
+         v_svrtreq_surname,
+         v_svrtreq_prefix,
+         v_svrtreq_firstname,
+         v_svrtreq_student_no_1,
+         v_svrtreq_student_no_2,
+         v_svrtreq_student_no_3,
+         v_svrtreq_id,
+         v_svrtreq_reason_cde;
+
+   exit when c19%notfound;
+
+   if  substr(v_svrtreq_bgn02,1,1) = 'C'
+   then
+       v_ocas_ouac_code := 'OCAS';
+   else
+       v_ocas_ouac_code := 'OUAC';
+   end if;
+
+   v_svptreq_147_data := '@H@|147|'||v_ocas_ouac_code;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := '@D@';
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := 'BGN|'||v_svrtreq_reason_cde||'|'||v_svrtreq_bgn02||'|'||v_svrtreq_trans_date||'|'||v_svrtreq_trans_time||'|ET';
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   if  v_svrtreq_reason_cde in ('01','12','21','22','48')
+   then
+       v_svptreq_147_data := 'AAA|Y';
+   else
+       v_svptreq_147_data := 'AAA|N';
+   end if;
+
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := 'REF|48|'||v_svrtreq_ocas_appnum;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   if  v_svrtreq_student_no_1 is not null
+   then
+       v_svptreq_147_data := 'REF|LR|'||v_svrtreq_student_no_1;
+       insert_svptreq_record
+       (p_svptreq_job_no,
+        v_svptreq_seq_no,
+        v_svptreq_147_data);
+   end if;
+
+   if  v_svrtreq_student_no_2 is not null
+   then
+       v_svptreq_147_data := 'REF|LR|'||v_svrtreq_student_no_2;
+       insert_svptreq_record
+       (p_svptreq_job_no,
+        v_svptreq_seq_no,
+        v_svptreq_147_data);
+   end if;
+
+   if  v_svrtreq_student_no_3 is not null
+   then
+       v_svptreq_147_data := 'REF|LR|'||v_svrtreq_student_no_3;
+       insert_svptreq_record
+       (p_svptreq_job_no,
+        v_svptreq_seq_no,
+        v_svptreq_147_data);
+   end if;
+
+   get_gtvsdax_translation_code
+   (null,
+   'EDICSIS',
+    v_gtvsdax_inst_code);
+
+   v_svptreq_147_data := 'N1|AS||CB|'||v_gtvsdax_inst_code;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := 'N1|AT|'||v_ocas_ouac_code||'|ZZ|'||v_ocas_ouac_code;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := 'IN1|1|04';
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := 'IN2|05|'||v_svrtreq_surname;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   if  v_svrtreq_prefix is null
+   then
+       get_spriden_pidm
+       (v_svrtreq_id,
+        v_spriden_pidm);
+
+       if  v_spriden_pidm is not null
+       then
+           get_spbpers_name_prefix
+           (v_spriden_pidm,
+            v_svrtreq_prefix);
+       else
+           v_svrtreq_prefix := 'UNKNOWN';
+       end if;
+   end if;
+
+   v_svptreq_147_data := 'IN2|01|'||v_svrtreq_prefix;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   v_svptreq_147_data := 'IN2|02|'||v_svrtreq_firstname;
+   insert_svptreq_record
+   (p_svptreq_job_no,
+    v_svptreq_seq_no,
+    v_svptreq_147_data);
+
+   if  v_svrtreq_reason_cde      = '48'
+   then
+       v_svrtreq_completion_ind := '~';
+   else
+       v_svrtreq_completion_ind := '147';
+   end if;
+
+   update_svrtreq_record
+   (v_svrtreq_bgn02,
+    null,
+   'C',
+    null,
+    null,
+    null,
+    v_svrtreq_completion_ind,
+    null,
+    null,
+    null);
+
+  end loop;
+  close c19;
+
+  commit;
+
+ end process_refusals;
+
+/*----------------------------------------------------------------------------*/
+/* Insert a record into the "SVPTREQ_TAB" table.                              */
+/*----------------------------------------------------------------------------*/
+
+ procedure insert_svptreq_record
+ (p_svptreq_id                    in  number,
+  p_svptreq_seq_no                in  out number,
+  p_svptreq_147_data              in  varchar2) is
+
+ begin
+
+  p_svptreq_seq_no := p_svptreq_seq_no + 1;
+
+  insert into svptreq_tab
+       ( svptreq_id,
+         svptreq_date,
+         svptreq_seq_no,
+         svptreq_147_data )
+  values
+       ( p_svptreq_id,
+         trunc(sysdate),
+         p_svptreq_seq_no,
+         p_svptreq_147_data );
+
+ end insert_svptreq_record;
+
+/*----------------------------------------------------------------------------*/
+/* Get the term code from the "GTVSDAX" table.                                */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_gtvsdax_translation_code
+ (p_gtvsdax_external_code         in  varchar2,
+  p_gtvsdax_external_code_group   in  varchar2,
+  p_gtvsdax_translation_code      out varchar2) is
+
+ cursor c19 is
+  select nvl(ltrim(gtvsdax_translation_code,'GEORGIAN'),gtvsdax_external_code)
+    from gtvsdax
+   where upper(gtvsdax_external_code)       =  nvl(p_gtvsdax_external_code,upper(gtvsdax_external_code))
+     and upper(gtvsdax_internal_code)       = 'EDIONT'
+     and upper(gtvsdax_internal_code_group) =  p_gtvsdax_external_code_group;
+
+ begin
+
+  p_gtvsdax_translation_code := null;
+
+  open c19;
+  fetch c19
+   into p_gtvsdax_translation_code;
+  close c19;
+
+ end get_gtvsdax_translation_code;
+
+/*----------------------------------------------------------------------------*/
+/* Get the student's PIDM from the "SPRIDEN" table.                           */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_spriden_pidm
+ (p_spriden_id                    in  varchar2,
+  p_spriden_pidm                  out number) is
+
+ cursor c20 is
+  select max(spriden_pidm)
+    from spriden
+   where spriden_id = p_spriden_id
+     and spriden_change_ind is null;
+
+ begin
+
+  p_spriden_pidm := null;
+
+  open c20;
+  fetch c20
+   into p_spriden_pidm;
+  close c20;
+
+ end get_spriden_pidm;
+
+/*----------------------------------------------------------------------------*/
+/* Get the student's name prefix from the "SPBPERS" table.                    */
+/*----------------------------------------------------------------------------*/
+
+ procedure get_spbpers_name_prefix
+ (p_spbpers_pidm                  in  number,
+  p_spbpers_name_prefix           out varchar2) is
+
+ cursor c21 is
+  select nvl(spbpers_name_prefix,'UNKNOWN')
+    from spbpers
+   where spbpers_pidm = p_spbpers_pidm;
+
+ begin
+
+  p_spbpers_name_prefix := null;
+
+  open c21;
+  fetch c21
+   into p_spbpers_name_prefix;
+  close c21;
+
+ end get_spbpers_name_prefix;
+
+/*----------------------------------------------------------------------------*/
+/* Update a record in the "SVRTREQ" table.                                    */
+/*----------------------------------------------------------------------------*/
+
+ procedure update_svrtreq_record
+ (p_svrtreq_bgn02                 in  varchar2,
+  p_svrtreq_send_date             in  date,
+  p_svrtreq_state_ind             in  varchar2,
+  p_svrtreq_match_ind             in  varchar2,
+  p_svrtreq_hold_ind              in  varchar2,
+  p_svrtreq_date_ind              in  varchar2,
+  p_svrtreq_completion_ind        in  varchar2,
+  p_svrtreq_id                    in  varchar2,
+  p_svrtreq_seq_no                in  number,
+  p_svrtreq_reason_cde            in  varchar2) is
+
+ begin
+
+  update svrtreq
+     set svrtreq_send_date      = nvl(p_svrtreq_send_date,     svrtreq_send_date),
+         svrtreq_state_ind      = nvl(p_svrtreq_state_ind,     svrtreq_state_ind),
+         svrtreq_match_ind      = nvl(p_svrtreq_match_ind,     svrtreq_match_ind),
+         svrtreq_hold_ind       = nvl(p_svrtreq_hold_ind,      svrtreq_hold_ind),
+         svrtreq_date_ind       = nvl(p_svrtreq_date_ind,      svrtreq_date_ind),
+         svrtreq_completion_ind = nvl(p_svrtreq_completion_ind,svrtreq_completion_ind),
+         svrtreq_id             = nvl(p_svrtreq_id,            svrtreq_id),
+         svrtreq_seq_no         = nvl(p_svrtreq_seq_no,        svrtreq_seq_no),
+         svrtreq_reason_cde     = p_svrtreq_reason_cde,
+         svrtreq_activity_date  = trunc(sysdate)
+   where svrtreq_bgn02          = p_svrtreq_bgn02;
+
+ end update_svrtreq_record;
+
+end svptreq_pkg;
+/
+SHOW ERRORS

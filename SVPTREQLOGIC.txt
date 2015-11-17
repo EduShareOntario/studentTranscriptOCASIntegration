@@ -1,0 +1,88 @@
+ IF  v_svrtreq_state_ind IN ('P','M')  THEN
+	delete_svrtdup_record(v_svrtreq_bgn02);
+       
+		IF  v_svrtreq_id IS NULL
+			match_student_info
+        ELSE
+			v_svrtreq_state_ind := 'H';
+			v_svrtreq_match_ind := 'X';		
+		END IF
+		
+		IF  v_svrtreq_state_ind = 'H' THEN
+       
+           IF  v_spriden_pidm IS NULL THEN
+           
+               get_spriden_pidm(v_svrtreq_id,v_spriden_pidm);                              
+           END IF;
+
+           check_student_deceased (v_spriden_pidm,v_spbpers_dead_ind);
+                      
+           IF  NVL(v_spbpers_dead_ind,'n') = 'Y' THEN           
+               v_svrtreq_send_date  :=  TRUNC(SYSDATE);
+               v_svrtreq_state_ind  := 'C';
+               v_svrtreq_hold_ind   := 'N';
+               v_svrtreq_reason_cde := '12';
+           END IF;
+       END IF;		
+ END IF
+ 
+ IF  v_svrtreq_state_ind = 'H' THEN
+       IF  NVL(v_svrtreq_hold_ind,'~') = 'O'  THEN      
+           v_svrtreq_state_ind := 'D';
+       ELSE
+           IF  v_spriden_pidm IS NULL THEN           
+               get_spriden_pidm(v_svrtreq_id,v_spriden_pidm);                              
+           END IF;
+           check_for_holds (v_spriden_pidm,v_svrtreq_state_ind,v_svrtreq_hold_ind);                                
+       END IF;
+ END IF;
+ 
+IF  v_svrtreq_state_ind = 'D'  THEN  
+       determine_send_date
+       (v_svrtreq_action_cde,
+        v_svrtreq_bgn02,
+        v_svrtreq_send_date,
+        v_svrtreq_state_ind,
+        v_svrtreq_date_ind,
+        v_svrtreq_reason_cde,
+        v_rpt_message);
+END IF;
+
+IF  v_rpt_message IS NULL THEN
+	v_shttran_seq_no := NULL;
+	IF  v_svrtreq_state_ind = 'C'
+	AND v_svrtreq_send_date  IS NOT NULL
+	AND TRUNC(v_svrtreq_send_date) <= TRUNC(SYSDATE)
+	AND v_svrtreq_reason_cde IS NULL THEN
+       
+		IF  v_spriden_pidm IS NULL THEN           
+		   get_spriden_pidm(v_svrtreq_id, v_spriden_pidm);                            
+		END IF;
+
+		insert_shttran_record
+		(v_spriden_pidm,
+		v_svrtreq_id,
+		v_svrtreq_bgn02,
+		v_shttran_seq_no);
+		v_svrtreq_completion_ind := '130';
+	END IF;
+ELSE
+	delete_svrtdup_record (v_svrtreq_bgn02);      
+	delete_svrtnte_record(v_svrtreq_bgn02);       
+	delete_svrtreq_record(v_svrtreq_bgn02);	       
+END IF
+
+
+
+
+array
+transcriptRequest.Request.Recipient[0].Receiver.RequestorReceiverOrganization
+	transcriptRequest.Request.Recipient[0].Receiver.RequestorReceiverOrganization.OrganizationName = 352011
+	transcriptRequest.Request.Recipient[0].Receiver.RequestorReceiverOrganization.USIS				= 352011
+	
+	
+	
+	
+	
+	
+	
