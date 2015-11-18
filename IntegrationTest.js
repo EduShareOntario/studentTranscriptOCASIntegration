@@ -17,7 +17,35 @@ var oracleConnection;
 var processTranscript = function(transcriptRequest) {
     Fiber(function() {
         console.log(transcriptRequest.TransmissionData.RequestTrackingID + '\t' + transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID + '\t' + transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.LastName + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.FirstName)
+        var studentId = null;
+        var matchIndicator = null;
+        var holdIndicator = null;
+        var stateIndicator = null;
+        var dateIndicator = null;
+        var firstMiddleName = null;
+        var secondMiddleName = null;
+        var formerSurName = null;
+        var sendDate = null;
         var matchInfo = matchStudentInfo(transcriptRequest).wait();
+        matchIndicator = matchInfo.matchInd;
+        stateIndicator = matchInfo.stateInd;
+        if (matchInfo.matchInd != null && matchInfo.matchInd == "X") {
+            studentId = matchInfo.studentId;
+        }
+        
+        if (transcriptRequest.Request.RequestedStudent.Person.Name.MiddleName != undefined) {
+            firstMiddleName = transcriptRequest.Request.RequestedStudent.Person.Name.MiddleName;
+        }
+        
+        if (transcriptRequest.Request.RequestedStudent.Person.AlternateName != undefined) {
+            if(transcriptRequest.Request.RequestedStudent.Person.AlternateName.LastName != undefined) {
+                formerSurName = transcriptRequest.Request.RequestedStudent.Person.AlternateName.LastName;            
+            }
+            if (transcriptRequest.Request.RequestedStudent.Person.AlternateName.MiddleName != undefined) {
+                secondMiddleName = transcriptRequest.Request.RequestedStudent.Person.AlternateName.MiddleName;
+            }
+        }
+        
         var actionCode = "";
         var holdType = "";
         var completionInd = "~";
@@ -41,26 +69,42 @@ var processTranscript = function(transcriptRequest) {
         
         //if we have a pidm -  check for holds
         var holdData = null;
-        var holdInd = null;
+       
         if (matchInfo.pidm != null) {
             holdData = checkForHolds(matchInfo.pidm).wait();
-            holdInd = holdData.holdInd;
+            stateIndicator = holdData.stateInd;
+            holdIndicator = holdData.holdInd;
+        } else {
+            stateIndicator = "M";
         }
         
-        
-        var dateInfo = calculateSendDate(actionCode, transcriptRequest.TransmissionData.RequestTrackingID).wait();
+        //todo not sure if this code should execute conditonally   
+        if (stateIndicator == "M") {
+            var dateInfo = calculateSendDate(actionCode, transcriptRequest.TransmissionData.RequestTrackingID).wait();
+            sendDate = dateInfo.sendDate;
+            stateIndicator = dateInfo.stateInd; 
+        }
+       
+
         var t1 = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/");
         var t2 = new Date(Date.parse(t1));
-        //writeRequest(transcriptRequest, 
-        //    matchInfo.matchInd, 
-        //    dateInfo.stateInd, 
-        //    t2, 
-        //    actionCode, 
-        //    completionInd,
-        //    dateInfo.sendDate
-        //).wait();
+        var birthDate = new Date(Date.parse(transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/")));
+        writeRequest(transcriptRequest, 
+            studentId,
+            stateIndicator,
+            matchIndicator, 
+            holdIndicator,
+            dateIndicator,
+            birthDate, 
+            actionCode, 
+            completionInd,
+            sendDate,
+            firstMiddleName,
+            secondMiddleName ,
+            formerSurName
+        ).wait();
         
-        //writeRequestNotes(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.Recipient).wait();
+        writeRequestNotes(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.Recipient).wait();
         //var completionInd = null;
         //if (dateInfo.message == null) {
         //    if (dateInfo.stateInd == "C" && dateInfo.sendDate != null  && dateInfo.sendDate <= new Date()) {
@@ -78,22 +122,32 @@ var processTranscript = function(transcriptRequest) {
 
 
 var connectToDb = function connectToDb() {
+    Fiber(function () {
+        oracleConnection = connectToDb1().wait();
+        console.log('we are done');
+        checkForTranscriptRequests();
+        return;
+    }).run();
+}
+
+var connectToDb1 = function connectToDb1() {
+    var future = new Future();   
     oracledb.getConnection(
         {
-            user          : config.settings.oracleUserId,
-            password      : config.settings.oraclePassword,
-            connectString : config.settings.oracleConnectString
+            user: config.settings.oracleUserId,
+            password: config.settings.oraclePassword,
+            connectString: config.settings.oracleConnectString
         },
-        function (err, connection) {
+        function(err, connection) {
             if (err) {
                 console.error(err.message);
                 return;
             }
             console.log('1: we are connected');
-            return connection;
+            future.return(connection);
         });
-
-}.future();
+    return future;
+}
 
 
 /**
@@ -248,15 +302,105 @@ var checkForHolds = function checkForHolds(pPidm) {
 
 /**
  * 
- * @param {} transcriptRequest 
- * @param {} matchIndicator 
- * @param {} stateIndicator 
- * @param {} birthDate 
- * @param {} actionCode 
- * @param {} sendDate 
+ * @param {} pInstCode 
  * @returns {} 
  */
-var writeRequest = function writeRequest(transcriptRequest, matchIndicator, stateIndicator, birthDate, actionCode, completionInd,sendDate) {
+//var getInstitution = function getInstitution(pInstCode) {
+//    var future = new Future();
+//    oracledb.getConnection(
+//        {
+//            user          : config.settings.oracleUserId,
+//            password      : config.settings.oraclePassword,
+//            connectString : config.settings.oracleConnectString
+//        },
+//        function (err, connection) {
+//            if (err) {
+//                console.error(err.message);
+//                return;
+//            }
+//            connection.execute(
+//                "BEGIN georgian.xmltranscripts.get_institution_name(:pXlblCode, :pEdiCode,:pInstName); END;",
+//            {
+//                    // bind variables                   
+//                    pXlblCode: "STVSBGIC",  
+//                    pEdiCode: pInstCode,                  
+//                    pInstName: { dir: oracledb.BIND_OUT, type: oracledb.STRING }
+//                },	
+//            function (err, result) {
+//                    if (err) {
+//                        console.error(err.message);
+//                        return;
+//                    }
+//                    var instData = {};
+//                    instData.schoolName = result.outBinds.pInstName;                   
+//                    future.return(instData);
+//                });
+//        });
+//    return future;
+//}
+
+var wrapAsyncWorkWithFuture = Future.wrap(getInstitution(pInstCode));
+
+
+function nodeHasNoPracticalUse(callback) {
+    /*setTimeout(function() {
+        return 'hello world';
+    }, 3000);*/
+    return 'helloworld';
+}
+
+function getInstitution(pInstCode) {
+    
+    var returnValue = null;
+   // return 'helloworld';
+    oracledb.getConnection(
+        {
+            user          : config.settings.oracleUserId,
+            password      : config.settings.oraclePassword,
+            connectString : config.settings.oracleConnectString
+        },
+        function (err, connection) {
+            if (err) {
+                console.error(err.message);
+                return;
+            }
+            connection.execute(
+                "BEGIN georgian.xmltranscripts.get_institution_name(:pXlblCode, :pEdiCode,:pInstName); END;",
+            {
+                    // bind variables                   
+                    pXlblCode: "STVSBGIC",  
+                    pEdiCode: pInstCode,                  
+                    pInstName: { dir: oracledb.BIND_OUT, type: oracledb.STRING }
+                },	
+            function (err, result) {
+                    if (err) {
+                        console.error(err.message);
+                        return;
+                    }                    
+                    returnValue = result.outBinds.pInstName;
+                });
+        });
+    return returnValue;
+}
+
+/**
+ * 
+ * @param {} transcriptRequest 
+ * @param {} studentId 
+ * @param {} stateIndicator 
+ * @param {} matchIndicator 
+ * @param {} holdIndicator 
+ * @param {} dateIndicator 
+ * @param {} birthDate 
+ * @param {} actionCode 
+ * @param {} completionInd 
+ * @param {} sendDate 
+ * @param {} firstMiddleName 
+ * @param {} secondMiddleName 
+ * @param {} formerSurName 
+ * @returns {} 
+ */
+var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndicator, matchIndicator, holdIndicator, dateIndicator, birthDate, actionCode, completionInd,sendDate, firstMiddleName, secondMiddleName, formerSurName) {
     var future = new Future();
     oracledb.getConnection(
         {
@@ -270,17 +414,18 @@ var writeRequest = function writeRequest(transcriptRequest, matchIndicator, stat
                 return;
             }
             var genderCode = transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0, 1);
-            
+                       
             var exitDate = null;
             if (transcriptRequest.Request.RequestedStudent.Attendance.ExitDate != undefined) {
                 var t1 = transcriptRequest.Request.RequestedStudent.Attendance.ExitDate.replace("-", "/");
                 var t2 = new Date(Date.parse(t1));
                 exitDate = t2;
             }
-                       
+            
+                        
             connection.execute(
-                "insert into saturn.svrtreq (svrtreq_bgn02,svrtreq_trans_date,svrtreq_purpose_cde, svrtreq_action_cde, svrtreq_state_ind, svrtreq_completion_ind, svrtreq_data_origin, svrtreq_user_id,svrtreq_activity_date,svrtreq_birth_date,svrtreq_gender,svrtreq_exit_date,svrtreq_surname,svrtreq_firstname,svrtreq_prefix,svrtreq_ocas_appnum,svrtreq_student_no_1,svrtreq_send_date) values (:svrtreq_bgn02,:svrtreq_trans_date,:svrtreq_purpose_cde, :svrtreq_action_cde, :svrtreq_state_ind, :svrtreq_completion_ind, :svrtreq_data_origin, :svrtreq_user_id,:svrtreq_activity_date, :svrtreq_birth_date, :svrtreq_gender,:svrtreq_exit_date,:svrtreq_surname,:svrtreq_firstname,:svrtreq_prefix, :svrtreq_ocas_appnum,:svrtreq_student_no_1,:svrtreq_send_date)",
-                [transcriptRequest.TransmissionData.RequestTrackingID, new Date(Date.parse(transcriptRequest.Request.CreatedDateTime)), '13', actionCode, stateIndicator, completionInd, 'deletexml', 'mwestbrooke', new Date(), birthDate, genderCode, exitDate, transcriptRequest.Request.RequestedStudent.Person.Name.LastName, transcriptRequest.Request.RequestedStudent.Person.Name.FirstName, transcriptRequest.Request.RequestedStudent.Person.Name.NamePrefix, transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID, transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID, sendDate],
+                "insert into saturn.svrtreq (svrtreq_bgn02,svrtreq_id,svrtreq_trans_date, svrtreq_state_ind, svrtreq_match_ind, svrtreq_hold_ind,svrtreq_date_ind,svrtreq_purpose_cde, svrtreq_action_cde,  svrtreq_completion_ind, svrtreq_data_origin, svrtreq_user_id,svrtreq_activity_date,svrtreq_birth_date,svrtreq_gender,svrtreq_exit_date,svrtreq_surname,svrtreq_firstname,svrtreq_prefix,svrtreq_ocas_appnum,svrtreq_student_no_1,svrtreq_send_date,svrtreq_firstmidname, svrtreq_secondmidname, svrtreq_formersurname) values (:svrtreq_bgn02,:svrtreq_id,:svrtreq_trans_date,:svrtreq_state_ind, :svrtreq_match_ind, :svrtreq_hold_ind, :svrtreq_date_ind, :svrtreq_purpose_cde, :svrtreq_action_cde, :svrtreq_completion_ind, :svrtreq_data_origin, :svrtreq_user_id,:svrtreq_activity_date, :svrtreq_birth_date, :svrtreq_gender,:svrtreq_exit_date,:svrtreq_surname,:svrtreq_firstname,:svrtreq_prefix, :svrtreq_ocas_appnum,:svrtreq_student_no_1,:svrtreq_send_date,:svrtreq_firstmidname, :svrtreq_secondmidname, :svrtreq_formersurname)",
+                [transcriptRequest.TransmissionData.RequestTrackingID, studentId,new Date(Date.parse(transcriptRequest.Request.CreatedDateTime)), stateIndicator, matchIndicator, holdIndicator, dateIndicator,'13', actionCode, completionInd, 'deletexml', 'mwestbrooke', new Date(), birthDate, genderCode, exitDate, transcriptRequest.Request.RequestedStudent.Person.Name.LastName, transcriptRequest.Request.RequestedStudent.Person.Name.FirstName, transcriptRequest.Request.RequestedStudent.Person.Name.NamePrefix, transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID, transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID, sendDate, firstMiddleName, secondMiddleName, formerSurName],
 		        { autoCommit: true },   
                 function (err, result) {
                     if (err) {
@@ -313,11 +458,13 @@ var writeRequestNotes = function writeRequestNotes(trackingId,recipient) {
                 console.error(err.message);
                 return;
             }
+            //todo get the userid instead of using my name, change origin to xml from deletexml
             console.log("we are firing");
             if (recipient.constructor === Array) {
                 var numEntries = recipient.length - 1;
                 for (var index = 0; index <= numEntries; ++index) {
-                    noteMessage = "inst=" + recipient[index].Receiver.RequestorReceiverOrganization.CSIS + "/" + recipient[index].Receiver.RequestorReceiverOrganization.OrganizationName;
+                    var t1 = wrapAsyncWorkWithFuture(recipient[index].Receiver.RequestorReceiverOrganization.USIS);
+                    noteMessage = "inst=" + recipient[index].Receiver.RequestorReceiverOrganization.USIS + "/" + wrapAsyncWorkWithFuture(recipient[index].Receiver.RequestorReceiverOrganization.USIS);
                     connection.execute(
                         "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
                         [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
@@ -433,7 +580,7 @@ var updateSvrtreq = function updateSvrtreq(pTrackingId,pSendDate,pStateInd,pMatc
 }
 
 //start processing
-var oracleConnection = connectToDb();
+//var oracleConnection = connectToDb();
 checkForTranscriptRequests();
 
 /**
@@ -494,25 +641,6 @@ function checkForTranscriptRequests() {
             console.log("Got an error: ", error, ", status code: ", response.statusCode);
         }
     });
-}
-
-function dateFromString(s) {
-    var bits = s.split(/[-T:+]/g);
-    var d = new Date(bits[0], bits[1] - 1, bits[2]);
-    d.setHours(bits[3], bits[4], bits[5]);
-    
-    // Get supplied time zone offset in minutes
-    var offsetMinutes = bits[6] * 60 + Number(bits[7]);
-    var sign = /\d\d-\d\d:\d\d$/.test(s)? '-' : '+';
-    
-    // Apply the sign
-    offsetMinutes = 0 + (sign == '-'? -1 * offsetMinutes : offsetMinutes);
-    
-    // Apply offset and local timezone
-    d.setMinutes(d.getMinutes() - offsetMinutes - d.getTimezoneOffset())
-    
-    // d is now a local time equivalent to the supplied time
-    return d;
 }
 
 
