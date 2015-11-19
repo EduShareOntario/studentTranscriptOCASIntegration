@@ -1,4 +1,3 @@
-/* Formatted on 11/16/2015 10:09:04 AM (QP5 v5.277) */
 /*
 	<VERSION>1.0</VERSION>
 	<FILENAME>svptreq_pkg.pkg</FILENAME>
@@ -151,6 +150,12 @@ PROCEDURE matchStudentInfo
   p_spriden_id                    IN  VARCHAR2,
   p_svrtreq_bgn02                 IN  VARCHAR2,
   p_shttran_seq_no                OUT NUMBER);
+  
+ PROCEDURE write_transcript_record
+ (p_spriden_pidm                  IN  NUMBER,
+  p_spriden_id                    IN  VARCHAR2,
+  p_svrtreq_bgn02                 IN  VARCHAR2,
+  p_shttran_seq_no                OUT NUMBER);
 
  PROCEDURE get_shttran_seq_no
  (p_svrtreq_bgn02                 IN  VARCHAR2,
@@ -195,6 +200,14 @@ PROCEDURE matchStudentInfo
  (p_gtvsdax_external_code         IN  VARCHAR2,
   p_gtvsdax_external_code_group   IN  VARCHAR2,
   p_gtvsdax_translation_code      OUT VARCHAR2);
+  
+PROCEDURE get_gtvsdax_translation_code
+(
+	p_gtvsdax_external_code         IN  gtvsdax.gtvsdax_external_code%TYPE,
+	p_gtvsdax_external_code_group   IN  VARCHAR2,
+	pInternalCode					IN  gtvsdax.gtvsdax_internal_code%TYPE,
+	p_gtvsdax_translation_code      OUT VARCHAR2
+); 
 
  PROCEDURE get_spbpers_name_prefix
  (p_spbpers_pidm                  IN  NUMBER,
@@ -1746,8 +1759,7 @@ END matchStudentInfo;
   v_sfbetrm_term_code             sfbetrm.sfbetrm_term_code%TYPE;
   v_gtvsdax_tprt_code             shttran.shttran_tprt_code%TYPE;
 
- BEGIN
-
+ BEGIN	
   get_shttran_seq_no
   (p_svrtreq_bgn02,
    p_spriden_id,
@@ -1841,8 +1853,129 @@ END matchStudentInfo;
          v_shttran_sbgi_code,
         'N',
         'N' );
+EXCEPTION
+    WHEN OTHERS THEN
+        Log_Error('insert_shttran_record',p_spriden_pidm,p_spriden_id || ' ' || SQLERRM); 
+END insert_shttran_record;
+ 
+ 
+ 
+PROCEDURE write_transcript_record
+(
+	p_spriden_pidm                  IN  NUMBER,
+	p_spriden_id                    IN  VARCHAR2,
+	p_svrtreq_bgn02                 IN  VARCHAR2,
+	p_shttran_seq_no                OUT NUMBER
+)
+IS
+	v_current_term_code             stvterm.stvterm_code%TYPE;
+	v_sgbstdn_term_code_eff         sgbstdn.sgbstdn_term_code_eff%TYPE;
+	v_shttran_sbgi_code             shttran.shttran_sbgi_code%TYPE;
+	v_sobsbgi_street_line1          sobsbgi.sobsbgi_street_line1%TYPE;
+	v_sobsbgi_street_line2          sobsbgi.sobsbgi_street_line2%TYPE;
+	v_sobsbgi_street_line3          sobsbgi.sobsbgi_street_line3%TYPE;
+	v_sobsbgi_city                  sobsbgi.sobsbgi_city%TYPE;
+	v_sobsbgi_stat_code             sobsbgi.sobsbgi_stat_code%TYPE;
+	v_sobsbgi_zip                   sobsbgi.sobsbgi_zip%TYPE;
+	v_sobsbgi_natn_code             sobsbgi.sobsbgi_natn_code%TYPE;
+	v_sfbetrm_term_code             sfbetrm.sfbetrm_term_code%TYPE;
+	v_gtvsdax_tprt_code             shttran.shttran_tprt_code%TYPE;
+	
+BEGIN
+	get_shttran_seq_no(p_svrtreq_bgn02,p_spriden_id, p_spriden_pidm, p_shttran_seq_no);
+	
+	gc_common_pkg.pw_get_current_term_code(v_current_term_code);
+  
 
- END insert_shttran_record;
+	v_current_term_code := SUBSTR(v_current_term_code,1,5)||'5';
+
+	get_sgbstdn_term_code_eff(p_spriden_pidm,v_current_term_code,v_sgbstdn_term_code_eff);
+
+	IF  SUBSTR(p_svrtreq_bgn02,1,1) = 'C' THEN
+		v_shttran_sbgi_code := 'OCAS';
+	ELSE
+		v_shttran_sbgi_code := 'OUAC';
+	END IF;
+
+	get_requestor_address
+	(
+		v_shttran_sbgi_code,
+		v_sobsbgi_street_line1,
+		v_sobsbgi_street_line2,
+		v_sobsbgi_street_line3,
+		v_sobsbgi_city,
+		v_sobsbgi_stat_code,
+		v_sobsbgi_zip,
+		v_sobsbgi_natn_code
+	);
+
+	get_gtvsdax_translation_code('XML', 'TPRT','XML',v_gtvsdax_tprt_code);	
+ 
+	get_sfbetrm_term_code(p_spriden_pidm, v_current_term_code, v_sfbetrm_term_code);
+ 
+	INSERT INTO shttran
+	( 
+		shttran_user,
+		shttran_pidm,
+		shttran_seq_no,
+		shttran_id,
+		shttran_type,
+		shttran_term,
+		shttran_levl_code,
+		shttran_addr_name,
+		shttran_street1,
+		shttran_street2,
+		shttran_street3,
+		shttran_city,
+		shttran_stat_code,
+		shttran_zip,
+		shttran_request_date,
+		shttran_activity_date,
+		shttran_tprt_code,
+		shttran_no_copies,
+		shttran_official_ind,
+		shttran_term_code_in_prg,
+		shttran_natn_code,
+		shttran_sbgi_code,
+		shttran_hold_grde_ind,
+		shttran_hold_degr_ind ,
+		shttran_user_id,
+		shttran_data_origin
+	)
+	VALUES
+	( 
+		USER,
+		p_spriden_pidm,
+		p_shttran_seq_no,
+		p_spriden_id,
+		'P',
+		v_sgbstdn_term_code_eff,
+		'AL',
+		v_shttran_sbgi_code,
+		v_sobsbgi_street_line1,
+		v_sobsbgi_street_line2,
+		v_sobsbgi_street_line3,
+		v_sobsbgi_city,
+		v_sobsbgi_stat_code,
+		v_sobsbgi_zip,
+		TRUNC(SYSDATE),
+		TRUNC(SYSDATE),
+		v_gtvsdax_tprt_code,
+		1,
+		'Y',
+		v_sfbetrm_term_code,
+		v_sobsbgi_natn_code,
+		v_shttran_sbgi_code,
+		'N',
+		'N',
+		USER,
+		'deletexml'
+	);
+	COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        Log_Error('write_transcript_record',p_spriden_pidm,p_spriden_id || ' ' || SQLERRM); 
+END write_transcript_record;
 
 /*----------------------------------------------------------------------------*/
 /* Get the next sequence number for the student from the "SHTTRAN" table.     */
@@ -2320,6 +2453,37 @@ END matchStudentInfo;
   CLOSE c19;
 
  END get_gtvsdax_translation_code;
+ 
+/*----------------------------------------------------------------------------*/
+/* Get the translation code from the "GTVSDAX" table.                         */
+/*----------------------------------------------------------------------------*/
+PROCEDURE get_gtvsdax_translation_code
+(
+	p_gtvsdax_external_code         IN  gtvsdax.gtvsdax_external_code%TYPE,
+	p_gtvsdax_external_code_group   IN  VARCHAR2,
+	pInternalCode					IN  gtvsdax.gtvsdax_internal_code%TYPE,
+	p_gtvsdax_translation_code      OUT VARCHAR2
+) 
+IS
+
+ CURSOR getTranslationCode IS
+	SELECT NVL(LTRIM(gtvsdax_translation_code,'GEORGIAN'),gtvsdax_external_code)
+    FROM gtvsdax
+	WHERE UPPER(gtvsdax_external_code)    	=  NVL(p_gtvsdax_external_code,UPPER(gtvsdax_external_code))
+	AND UPPER(gtvsdax_internal_code)       	=  pInternalCode
+	AND UPPER(gtvsdax_internal_code_group) 	=  p_gtvsdax_external_code_group;
+
+ BEGIN
+  p_gtvsdax_translation_code := NULL;
+
+  OPEN getTranslationCode;
+  FETCH getTranslationCode INTO p_gtvsdax_translation_code;   
+  CLOSE getTranslationCode;
+EXCEPTION
+    WHEN OTHERS THEN
+        Log_Error('get_gtvsdax_translation_code',' ',p_gtvsdax_external_code || ' ' || p_gtvsdax_external_code_group || ' ' || pInternalCode || ' ' || SQLERRM); 
+ END get_gtvsdax_translation_code;
+ 
 
 /*----------------------------------------------------------------------------*/
 /* Get the student's PIDM from the "SPRIDEN" table.                           */
