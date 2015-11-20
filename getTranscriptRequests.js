@@ -61,7 +61,7 @@ function checkForTranscriptRequests() {
                     var requestDetails = JSON.parse(body);
                     console.log("write the transcript request details to the worker queue");
                     // Create a job:
-                    var job = new Job('student-transcript', 'getTranscript', // type of job
+                    var job = new Job('student-transcript', 'transcriptRequests', // type of job
                     // Job data that you define, including anything the job
                     // needs to complete. May contain links to files, etc...
                     {
