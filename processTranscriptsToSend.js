@@ -41,7 +41,7 @@ function ddpLoginCB(err) {
 
 function checkForTranscriptsToProcess() {
     console.log("Processing transcripts");
-    var workers = Job.processJobs('student-transcript', 'transcriptRequests', 
+    var workers = Job.processJobs('student-transcript-out', 'transcriptRequests', 
 	  function (job, cb) {
         // This will only be called if a job is obtained from Job.getWork()         
         console.log("here");

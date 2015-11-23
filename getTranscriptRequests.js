@@ -61,20 +61,20 @@ function checkForTranscriptRequests() {
                     var requestDetails = JSON.parse(body);
                     console.log("write the transcript request details to the worker queue");
                     // Create a job:
-                    //var job = new Job('student-transcript', 'transcriptRequests', // type of job
-                    //// Job data that you define, including anything the job
-                    //// needs to complete. May contain links to files, etc...
-                    //{
-                    //    requestId: requestDetails.RequestID,
-                    //    requestDetails: requestDetails.PESCXml
-                    //}
-                    //);
-                    //job.priority('normal')
-                    //.retry({
-                    //    retries: 5,
-                    //    wait: 15 * 60 * 1000
-                    //})// 15 minutes between attempts 
-                    //.save();               // Commit it to
+                    var job = new Job('student-transcript-out', 'transcriptRequests', // type of job
+                    // Job data that you define, including anything the job
+                    // needs to complete. May contain links to files, etc...
+                    {
+                        requestId: requestDetails.RequestID,
+                        requestDetails: requestDetails.PESCXml
+                    }
+                    );
+                    job.priority('normal')
+                    .retry({
+                        retries: 5,
+                        wait: 15 * 60 * 1000
+                    })// 15 minutes between attempts 
+                    .save();               // Commit it to
                 }
             }
             
