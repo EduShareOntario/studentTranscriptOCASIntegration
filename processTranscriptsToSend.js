@@ -7,7 +7,7 @@ var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
 var oracledb = require('oracledb');
-
+var xml2js = require('xml2js');
 
 // Setup the DDP connection
 var ddp = new DDP({
@@ -35,8 +35,7 @@ ddp.connect(function (err) {
 function ddpLoginCB(err) {
     if (err)
         //todo what if I can't connect
-        throw err;
-    
+        throw err;    
     checkForTranscriptsToProcess();
 }
 
@@ -44,15 +43,22 @@ function checkForTranscriptsToProcess() {
     console.log("Processing transcripts");
     var workers = Job.processJobs('student-transcript', 'transcriptRequests', 
 	  function (job, cb) {
-        // This will only be called if a job is obtained from Job.getWork() 
-        // Up to four of these worker functions can be outstanding at 
-        //	a time based on the concurrency option... 
-        //console.log("Obtained Job ID" + job.data);
+        // This will only be called if a job is obtained from Job.getWork()         
         console.log("here");
+        var parser = new xml2js.Parser({
+            attrkey:  '@',
+            xmlns:  false,  
+            ignoreAttrs:  true,
+            explicitArray: false,
+            tagNameProcessors: [xml2js.processors.stripPrefix]
+        });
+        parser.parseString(job._doc.data.requestDetails, 
+           function (err, result) {
+            //todo                            
+            console.log(result.TranscriptRequest);
+        });
         // Be sure to invoke the callback when this job has been 
         // completed or failed. 
-        cb();
-	 
-    }
-    );
+        cb();	 
+    });   
 }
