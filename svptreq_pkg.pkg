@@ -4,7 +4,7 @@
 	<FILENAME>svptreq_pkg.pkg</FILENAME>
 	<AUTHOR>Georgian College</AUTHOR>
 	<SUMMARY>The Off Count Report (the big one). </SUMMARY>
-
+	 
 	<OVERVIEW>
 		First the data gets loaded into the "GWRFILE" table from the "sqlplus"     
 		procedure that executes this package. 
@@ -334,7 +334,8 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
   v_treq_purpose := NULL;
 
   OPEN c1;
-  LOOP
+  LOOP  
+	log_details('process_requests',0,'','beginning of process',p_svrtreq_bgn02 || ' ' || p_130_147_flg || ' ' ||  p_reason_code);
 
    FETCH c1
     INTO v_gwrfile_line,
@@ -793,6 +794,8 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
 
   COMMIT;
 
+  log_details('process_requests',0,'','c2 cursor',p_svrtreq_bgn02 || ' ' || p_130_147_flg || ' ' ||  p_reason_code);
+
   OPEN c2;
   LOOP
 
@@ -815,7 +818,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
          v_svrtreq_id;
 
    EXIT WHEN c2%NOTFOUND;
-
+	log_details('process_requests',0,'','c2 cursor - we have data',v_svrtreq_bgn02 || ' ' || v_svrtreq_surname);
    v_rcrd_err_flg       := 0;
    v_spriden_pidm       := NULL;
    v_svrtreq_reason_cde := NULL;
