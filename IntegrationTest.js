@@ -2,6 +2,9 @@
 
 var https = require('https');
 var request = require('request');
+var DDP = require('ddp');
+var DDPlogin = require('ddp-login');
+var Job = require('meteor-job');
 var config = require('app-config');
 var Fiber = require('fibers');
 var Future = require('fibers/future');
@@ -11,12 +14,47 @@ var xml2js = require('xml2js');
 
 
 console.log('Start Her Up');
+
+// Setup the DDP connection
+var ddp = new DDP({
+    host: config.settings.ddpHost,
+    port: config.settings.ddpPort,
+    use_ejson: true
+});
+
+Job.setDDP(ddp);
+
+// Open the DDP connection
+ddp.connect(function (err) {
+    if (err) throw err;
+    var options = {
+        env: 'METEOR_TOKEN',
+        method: 'account',
+        account: config.settings.ddpUser,  
+        pass: config.settings.ddpPassword,     
+        retry: 3,       
+        plaintext: false
+    };
+    DDPlogin(ddp, options, ddpLoginCB);
+});
+
+
+function ddpLoginCB(err) {
+    if (err)
+        //todo what if I can't connect
+        throw err;
+    checkForTranscriptsToProcess();
+}
+
+
+
 var authToken;
 var oracleConnection;
-
-var processTranscript = function(transcriptRequest) {
-    Fiber(function() {
+var pInstCode;
+var processTranscript = function (transcriptRequest) {
+    Fiber(function () {
         console.log(transcriptRequest.TransmissionData.RequestTrackingID + '\t' + transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID + '\t' + transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.LastName + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.FirstName)
+        //recipient.constructor === Array
         var studentId = null;
         var matchIndicator = null;
         var holdIndicator = null;
@@ -31,6 +69,8 @@ var processTranscript = function(transcriptRequest) {
         stateIndicator = matchInfo.stateInd;
         if (matchInfo.matchInd != null && matchInfo.matchInd == "X") {
             studentId = matchInfo.studentId;
+        } else {
+            matchInfo.matchInd = "N";
         }
         
         if (transcriptRequest.Request.RequestedStudent.Person.Name.MiddleName != undefined) {
@@ -38,8 +78,8 @@ var processTranscript = function(transcriptRequest) {
         }
         
         if (transcriptRequest.Request.RequestedStudent.Person.AlternateName != undefined) {
-            if(transcriptRequest.Request.RequestedStudent.Person.AlternateName.LastName != undefined) {
-                formerSurName = transcriptRequest.Request.RequestedStudent.Person.AlternateName.LastName;            
+            if (transcriptRequest.Request.RequestedStudent.Person.AlternateName.LastName != undefined) {
+                formerSurName = transcriptRequest.Request.RequestedStudent.Person.AlternateName.LastName;
             }
             if (transcriptRequest.Request.RequestedStudent.Person.AlternateName.MiddleName != undefined) {
                 secondMiddleName = transcriptRequest.Request.RequestedStudent.Person.AlternateName.MiddleName;
@@ -69,7 +109,7 @@ var processTranscript = function(transcriptRequest) {
         
         //if we have a pidm -  check for holds
         var holdData = null;
-       
+        
         if (matchInfo.pidm != null) {
             holdData = checkForHolds(matchInfo.pidm).wait();
             stateIndicator = holdData.stateInd;
@@ -78,14 +118,14 @@ var processTranscript = function(transcriptRequest) {
             stateIndicator = "M";
         }
         
-        //todo not sure if this code should execute conditonally   
-        if (stateIndicator == "M") {
+        //todo not sure if this code should execute conditionally 
+        
+        if (stateIndicator == "D") {
             var dateInfo = calculateSendDate(actionCode, transcriptRequest.TransmissionData.RequestTrackingID).wait();
             sendDate = dateInfo.sendDate;
-            stateIndicator = dateInfo.stateInd; 
+            stateIndicator = dateInfo.stateInd;
         }
-       
-
+        
         var t1 = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/");
         var t2 = new Date(Date.parse(t1));
         var birthDate = new Date(Date.parse(transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/")));
@@ -103,23 +143,34 @@ var processTranscript = function(transcriptRequest) {
             secondMiddleName ,
             formerSurName
         ).wait();
+
+        writeAgency(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.RequestedStudent.Person).wait();
         
         writeRequestNotes(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.Recipient).wait();
         //var completionInd = null;
-        //if (dateInfo.message == null) {
-        //    if (dateInfo.stateInd == "C" && dateInfo.sendDate != null  && dateInfo.sendDate <= new Date()) {
-        //        writeTranscript(matchInfo.pidm, matchInfo.studentId, transcriptRequest.TransmissionData.RequestTrackingID).wait();           
-        //        completionInd = "130";
-        //    }
+        if (dateInfo != undefined) {
+            if (dateInfo.message == null) {
+                if (dateInfo.stateInd == "C" && dateInfo.sendDate != null && dateInfo.sendDate <= new Date()) {
+                    var seqNo = writeTranscript(matchInfo.pidm, matchInfo.studentId, transcriptRequest.TransmissionData.RequestTrackingID).wait();
+                    completionInd = "130";
+                }
         
         //    todo need to get some of the parameters, reason code
         //    updateSvrtreq(transcriptRequest.TransmissionData.RequestTrackingID,dateInfo.sendDate,dateInfo.stateInd,matchInfo.matchInd, holdInd,dateInfo.dateInd,completionInd,matchInfo.studentId,null, dateInfo.reasonCode).wait();
-        //}
+            }
+        }
+        
         
         console.log('what are the values');
     }).run();
 }
 
+var institution = function (pId, pIndex) {
+    Fiber(function () {
+        var instName = getInstitution(pId, pIndex).wait();
+        console.log('break here');
+    }).run();
+}
 
 var connectToDb = function connectToDb() {
     Fiber(function () {
@@ -131,14 +182,14 @@ var connectToDb = function connectToDb() {
 }
 
 var connectToDb1 = function connectToDb1() {
-    var future = new Future();   
+    var future = new Future();
     oracledb.getConnection(
         {
             user: config.settings.oracleUserId,
             password: config.settings.oraclePassword,
             connectString: config.settings.oracleConnectString
         },
-        function(err, connection) {
+        function (err, connection) {
             if (err) {
                 console.error(err.message);
                 return;
@@ -162,7 +213,7 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
     var birthDate1 = new Date(transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.substring(0, 4), transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.substring(5, 7), transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.substring(8, 10));
     var t1 = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/");
     var t2 = new Date(Date.parse(t1));
-   // console.log(t2);
+    
     oracledb.getConnection(
         {
             user          : config.settings.oracleUserId,
@@ -180,8 +231,8 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
             {
                     // bind variables                   
                     p_svrtreq_bgn02: transcriptRequest.TransmissionData.RequestTrackingID,
-                    p_svrtreq_birth_date:t2,
-                    p_svrtreq_sex: transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0,1),
+                    p_svrtreq_birth_date: t2,
+                    p_svrtreq_sex: transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0, 1),
                     p_studentId : transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID,
                     p_svrtreq_last_name: transcriptRequest.Request.RequestedStudent.Person.Name.LastName,
                     p_svrtreq_first_name: transcriptRequest.Request.RequestedStudent.Person.Name.FirstName,	
@@ -207,6 +258,8 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
         });
     return future;
 };
+
+
 
 
 /**
@@ -247,13 +300,13 @@ var calculateSendDate = function calculateSendDate(actionCode, trackingId) {
                         console.error(err.message);
                         return;
                     }
-                    var dateData = {};                   
+                    var dateData = {};
                     dateData.sendDate = result.outBinds.p_svrtreq_send_date;
                     dateData.stateInd = result.outBinds.p_svrtreq_state_ind;
                     dateData.dateInd = result.outBinds.p_svrtreq_date_ind;
                     dateData.reasonCode = result.outBinds.p_svrtreq_reason_cde;
                     dateData.message = result.outBinds.p_error_message;
-
+                    
                     future.return(dateData);
                 });
         });
@@ -277,7 +330,7 @@ var checkForHolds = function checkForHolds(pPidm) {
             if (err) {
                 console.error(err.message);
                 return;
-            }          
+            }
             connection.execute(
                 "BEGIN georgian.svptreq_pkg.check_for_holds(:p_spriden_pidm, :p_svrtreq_state_ind,:p_svrtreq_hold_ind ); END;",
             {
@@ -305,54 +358,8 @@ var checkForHolds = function checkForHolds(pPidm) {
  * @param {} pInstCode 
  * @returns {} 
  */
-//var getInstitution = function getInstitution(pInstCode) {
-//    var future = new Future();
-//    oracledb.getConnection(
-//        {
-//            user          : config.settings.oracleUserId,
-//            password      : config.settings.oraclePassword,
-//            connectString : config.settings.oracleConnectString
-//        },
-//        function (err, connection) {
-//            if (err) {
-//                console.error(err.message);
-//                return;
-//            }
-//            connection.execute(
-//                "BEGIN georgian.xmltranscripts.get_institution_name(:pXlblCode, :pEdiCode,:pInstName); END;",
-//            {
-//                    // bind variables                   
-//                    pXlblCode: "STVSBGIC",  
-//                    pEdiCode: pInstCode,                  
-//                    pInstName: { dir: oracledb.BIND_OUT, type: oracledb.STRING }
-//                },	
-//            function (err, result) {
-//                    if (err) {
-//                        console.error(err.message);
-//                        return;
-//                    }
-//                    var instData = {};
-//                    instData.schoolName = result.outBinds.pInstName;                   
-//                    future.return(instData);
-//                });
-//        });
-//    return future;
-//}
-
-var wrapAsyncWorkWithFuture = Future.wrap(getInstitution(pInstCode));
-
-
-function nodeHasNoPracticalUse(callback) {
-    /*setTimeout(function() {
-        return 'hello world';
-    }, 3000);*/
-    return 'helloworld';
-}
-
-function getInstitution(pInstCode) {
-    
-    var returnValue = null;
-   // return 'helloworld';
+var getInstitution = function getInstitution(pInstCode) {
+    var future = new Future();
     oracledb.getConnection(
         {
             user          : config.settings.oracleUserId,
@@ -367,20 +374,32 @@ function getInstitution(pInstCode) {
             connection.execute(
                 "BEGIN georgian.xmltranscripts.get_institution_name(:pXlblCode, :pEdiCode,:pInstName); END;",
             {
-                    // bind variables                   
-                    pXlblCode: "STVSBGIC",  
-                    pEdiCode: pInstCode,                  
+                    // bind variables
+                    pXlblCode: "STVSBGIC",
+                    pEdiCode: pInstCode,
                     pInstName: { dir: oracledb.BIND_OUT, type: oracledb.STRING }
-                },	
+                },
             function (err, result) {
                     if (err) {
                         console.error(err.message);
                         return;
-                    }                    
-                    returnValue = result.outBinds.pInstName;
+                    }
+                    var instData = {};
+                    instData.schoolName = result.outBinds.pInstName;
+                    future.return(result.outBinds.pInstName);
                 });
         });
-    return returnValue;
+    return future;
+}
+
+var wrapAsyncWorkWithFuture = Future.wrap(pissedOff);
+
+
+function pissedOff(callback, t1Test) {
+    setTimeout(function () {
+        return ('hello world' + t1Test);
+        console.log('we have executed')
+    }, 3000);
 }
 
 /**
@@ -400,7 +419,7 @@ function getInstitution(pInstCode) {
  * @param {} formerSurName 
  * @returns {} 
  */
-var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndicator, matchIndicator, holdIndicator, dateIndicator, birthDate, actionCode, completionInd,sendDate, firstMiddleName, secondMiddleName, formerSurName) {
+var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndicator, matchIndicator, holdIndicator, dateIndicator, birthDate, actionCode, completionInd, sendDate, firstMiddleName, secondMiddleName, formerSurName) {
     var future = new Future();
     oracledb.getConnection(
         {
@@ -414,7 +433,7 @@ var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndi
                 return;
             }
             var genderCode = transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0, 1);
-                       
+            
             var exitDate = null;
             if (transcriptRequest.Request.RequestedStudent.Attendance.ExitDate != undefined) {
                 var t1 = transcriptRequest.Request.RequestedStudent.Attendance.ExitDate.replace("-", "/");
@@ -422,10 +441,10 @@ var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndi
                 exitDate = t2;
             }
             
-                        
+            
             connection.execute(
                 "insert into saturn.svrtreq (svrtreq_bgn02,svrtreq_id,svrtreq_trans_date, svrtreq_state_ind, svrtreq_match_ind, svrtreq_hold_ind,svrtreq_date_ind,svrtreq_purpose_cde, svrtreq_action_cde,  svrtreq_completion_ind, svrtreq_data_origin, svrtreq_user_id,svrtreq_activity_date,svrtreq_birth_date,svrtreq_gender,svrtreq_exit_date,svrtreq_surname,svrtreq_firstname,svrtreq_prefix,svrtreq_ocas_appnum,svrtreq_student_no_1,svrtreq_send_date,svrtreq_firstmidname, svrtreq_secondmidname, svrtreq_formersurname) values (:svrtreq_bgn02,:svrtreq_id,:svrtreq_trans_date,:svrtreq_state_ind, :svrtreq_match_ind, :svrtreq_hold_ind, :svrtreq_date_ind, :svrtreq_purpose_cde, :svrtreq_action_cde, :svrtreq_completion_ind, :svrtreq_data_origin, :svrtreq_user_id,:svrtreq_activity_date, :svrtreq_birth_date, :svrtreq_gender,:svrtreq_exit_date,:svrtreq_surname,:svrtreq_firstname,:svrtreq_prefix, :svrtreq_ocas_appnum,:svrtreq_student_no_1,:svrtreq_send_date,:svrtreq_firstmidname, :svrtreq_secondmidname, :svrtreq_formersurname)",
-                [transcriptRequest.TransmissionData.RequestTrackingID, studentId,new Date(Date.parse(transcriptRequest.Request.CreatedDateTime)), stateIndicator, matchIndicator, holdIndicator, dateIndicator,'13', actionCode, completionInd, 'deletexml', 'mwestbrooke', new Date(), birthDate, genderCode, exitDate, transcriptRequest.Request.RequestedStudent.Person.Name.LastName, transcriptRequest.Request.RequestedStudent.Person.Name.FirstName, transcriptRequest.Request.RequestedStudent.Person.Name.NamePrefix, transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID, transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID, sendDate, firstMiddleName, secondMiddleName, formerSurName],
+                [transcriptRequest.TransmissionData.RequestTrackingID, studentId, new Date(Date.parse(transcriptRequest.Request.CreatedDateTime)), stateIndicator, matchIndicator, holdIndicator, dateIndicator, '13', actionCode, completionInd, 'deletexml', 'mwestbrooke', new Date(), birthDate, genderCode, exitDate, transcriptRequest.Request.RequestedStudent.Person.Name.LastName, transcriptRequest.Request.RequestedStudent.Person.Name.FirstName, transcriptRequest.Request.RequestedStudent.Person.Name.NamePrefix, transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID, transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID, sendDate, firstMiddleName, secondMiddleName, formerSurName],
 		        { autoCommit: true },   
                 function (err, result) {
                     if (err) {
@@ -438,13 +457,70 @@ var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndi
     return future;
 }
 
+
+var writeAgency = function writeAgency(trackingId, person) {
+    var future = new Future();
+    var noteMessage = "";
+    oracledb.getConnection(
+        {
+            user          : config.settings.oracleUserId,
+            password      : config.settings.oraclePassword,
+            connectString : config.settings.oracleConnectString
+        },
+        function (err, connection) {
+            if (err) {
+                console.error(err.message);
+                return;
+            }
+            //todo get the userid instead of using my name, change origin to xml from deletexml
+            console.log("we are firing");
+
+            if (person.AgencyAssignedID === undefined) {
+                if (person.AgencyIdentifier.constructor === Array) {
+                    var numEntries = person.AgencyIdentifier.length - 1;
+                    for (var index = 0; index <= numEntries; ++index) {
+                        Fiber(function () {                                                                         
+                            //todo need to handle transaction semantics
+                            connection.execute(
+                                "insert into saturn.xml_agency (xml_agency_requesttrackingid,xml_agency_name,xml_agency_code, xml_agency_id, xml_agency_status,xml_agency_activity) values (:xml_agency_requesttrackingid,:xml_agency_name,:xml_agency_code, :xml_agency_id, :xml_agency_status,:xml_agency_activity)",
+                                [trackingId, person.AgencyIdentifier[index].AgencyName,person.AgencyIdentifier[index].AgencyCode,person.AgencyIdentifier[index].AgencyAssignedID, '', new Date()],
+                                { autoCommit: true },
+                            function (err, result) {
+                                    if (err) {
+                                        console.error(err.message);
+                                        return;
+                                    }
+                                });
+                        }).run();
+                    }
+                }
+            } else {
+                Fiber(function () {
+                    //todo need to handle transaction semantics
+                    connection.execute(
+                        "insert into saturn.xml_agency (xml_agency_requesttrackingid,xml_agency_name,xml_agency_code, xml_agency_id, xml_agency_status,xml_agency_activity) values (:xml_agency_requesttrackingid,:xml_agency_name,:xml_agency_code, :xml_agency_id, :xml_agency_status,:xml_agency_activity)",
+                        [trackingId, '????', '????', person.AgencyAssignedID,'',new Date()],
+                        { autoCommit: true },
+                        function (err, result) {
+                        if (err) {
+                            console.error(err.message);
+                            return;
+                        }
+                        });
+                }).run();                
+            }            
+            future.return();
+        });
+    return future;
+}
+
 /**
  * 
  * @param {} trackingId 
  * @param {} recipient 
  * @returns {} 
  */
-var writeRequestNotes = function writeRequestNotes(trackingId,recipient) {
+var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
     var future = new Future();
     var noteMessage = "";
     oracledb.getConnection(
@@ -463,40 +539,82 @@ var writeRequestNotes = function writeRequestNotes(trackingId,recipient) {
             if (recipient.constructor === Array) {
                 var numEntries = recipient.length - 1;
                 for (var index = 0; index <= numEntries; ++index) {
-                    var t1 = wrapAsyncWorkWithFuture(recipient[index].Receiver.RequestorReceiverOrganization.USIS);
-                    noteMessage = "inst=" + recipient[index].Receiver.RequestorReceiverOrganization.USIS + "/" + wrapAsyncWorkWithFuture(recipient[index].Receiver.RequestorReceiverOrganization.USIS);
+                    //var t1 = wrapAsyncWorkWithFuture(recipient[index].Receiver.RequestorReceiverOrganization.USIS, index);
+                    // var t1 = "hello";
+                    // institution(recipient[index].Receiver.RequestorReceiverOrganization.USIS,index);
+                    Fiber(function () {
+                        var recipientCode = null;
+                        if (recipient[index].Receiver.RequestorReceiverOrganization.USIS != undefined) {
+                            console.log('stop here');
+                            recipientCode = recipient[index].Receiver.RequestorReceiverOrganization.USIS;
+                        } else if (recipient[index].Receiver.RequestorReceiverOrganization.CSIS != undefined) {
+                            recipientCode = recipient[index].Receiver.RequestorReceiverOrganization.CSIS;
+                        } else {
+                            //todo can this happen
+                            console.log('this is an error');
+                        }
+                        //var recipeent = recipient[index].Receiver.RequestorReceiverOrganization.USIS;
+                        var instName = getInstitution(recipientCode).wait();
+                        noteMessage = "inst=" + recipientCode + "/" + instName;
+                        
+                        
+                        //todo need to handle transaction semantics
+                        connection.execute(
+                            "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
+                            [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
+                            { autoCommit: true },
+                            function (err, result) {
+                                if (err) {
+                                    console.error(err.message);
+                                    return;
+                                }
+                            });
+                    }).run();
+
+
+                }
+            } else {
+                Fiber(function () {
+                    var recipientCode = null;
+                    if (recipient.Receiver.RequestorReceiverOrganization.USIS != undefined) {
+                        console.log('stop here');
+                        recipientCode = recipient.Receiver.RequestorReceiverOrganization.USIS;
+                    } else if (recipient.Receiver.RequestorReceiverOrganization.CSIS != undefined) {
+                        recipientCode = recipient.Receiver.RequestorReceiverOrganization.CSIS;
+                    } else {
+                        //todo can this happen
+                        console.log('this is an error');
+                    }
+                    var instName = getInstitution(recipientCode).wait();
+                    noteMessage = "inst=" + recipientCode + "/" + instName;
+                    
+                    
+                    //todo need to handle transaction semantics
                     connection.execute(
                         "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
-                        [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
-                        { autoCommit: true },
-                        function(err, result) {
+                            [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
+                            { autoCommit: true },
+                            function (err, result) {
                             if (err) {
                                 console.error(err.message);
                                 return;
-                            }                          
+                            }
                         });
-                }
-            } else {
-                noteMessage = "inst=" + recipient.Receiver.RequestorReceiverOrganization.CSIS + "/" + recipient.Receiver.RequestorReceiverOrganization.OrganizationName;
-                connection.execute(
-                    "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
-                        [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
-                        { autoCommit: true },
-                        function (err, result) {
-                        if (err) {
-                            console.error(err.message);
-                            return;
-                        }
-                          
-                        });                
+                }).run();
             }
-            future.return();                      
+            future.return();
         });
     return future;
 }
 
 
-
+/**
+ * 
+ * @param {} pPidm 
+ * @param {} pStudentId 
+ * @param {} pTrackingId 
+ * @returns {} 
+ */
 var writeTranscript = function writeTranscript(pPidm, pStudentId, pTrackingId) {
     var future = new Future();
     oracledb.getConnection(
@@ -512,21 +630,21 @@ var writeTranscript = function writeTranscript(pPidm, pStudentId, pTrackingId) {
             }
             
             connection.execute(
-                "BEGIN georgian.insert_shttran_record(:p_spriden_pidm, :p_spriden_id,:p_svrtreq_bgn02,:p_shttran_seq_no); END;",
+                "BEGIN georgian.svptreq_pkg.write_transcript_record(:p_spriden_pidm, :p_spriden_id,:p_svrtreq_bgn02,:p_shttran_seq_no); END;",
             {
                     // bind variables                   
                     p_spriden_pidm: pPidm,
                     p_spriden_id: pStudentId,
                     p_svrtreq_bgn02: pTrackingId,
                     p_shttran_seq_no: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }
-                },	                       
+                },	 
                 function (err, result) {
                     if (err) {
                         console.error(err.message);
                         return;
                     }
                     var returnData = {};
-                    returnData.sendDate = result.outBinds.p_shttran_seq_no;
+                    returnData.seqNo = result.outBinds.p_shttran_seq_no;
                     future.return(returnData);
                 });
         });
@@ -540,7 +658,7 @@ var writeTranscript = function writeTranscript(pPidm, pStudentId, pTrackingId) {
  * @param {} pTrackingId 
  * @returns {} 
  */
-var updateSvrtreq = function updateSvrtreq(pTrackingId,pSendDate,pStateInd,pMatchInd,pHoldInd,pDateInd,pCompletionInd,pStudentId,pSeqNo,pReasonCode) {
+var updateSvrtreq = function updateSvrtreq(pTrackingId, pSendDate, pStateInd, pMatchInd, pHoldInd, pDateInd, pCompletionInd, pStudentId, pSeqNo, pReasonCode) {
     var future = new Future();
     oracledb.getConnection(
         {
@@ -581,7 +699,7 @@ var updateSvrtreq = function updateSvrtreq(pTrackingId,pSendDate,pStateInd,pMatc
 
 //start processing
 //var oracleConnection = connectToDb();
-checkForTranscriptRequests();
+//checkForTranscriptRequests();
 
 /**
  * 
@@ -613,8 +731,8 @@ function checkForTranscriptRequests() {
                     parser.parseString(requestDetails.PESCXml, 
                         function (err, result) {
                         //todo                            
-                            processTranscript(result.TranscriptRequest);
-                        });                                        
+                        processTranscript(result.TranscriptRequest);
+                    });
                 }
             }
             
@@ -622,7 +740,7 @@ function checkForTranscriptRequests() {
                 if (!error && response.statusCode == 200) {
                     var info = JSON.parse(body);
                     for (var i = 0; i < info.length; i++) {
-                       console.log(info[i].RequestID);
+                        console.log(info[i].RequestID);
                         
                         //get the details
                         var detailOptions = {
@@ -644,8 +762,26 @@ function checkForTranscriptRequests() {
 }
 
 
-
-
-
-
-
+function checkForTranscriptsToProcess() {
+    console.log("Processing transcripts");
+    var workers = Job.processJobs('student-transcript-out', 'transcriptRequests', 
+	  function (job, cb) {
+        // This will only be called if a job is obtained from Job.getWork()         
+        console.log("here");
+        var parser = new xml2js.Parser({
+            attrkey:  '@',
+            xmlns:  false,  
+            ignoreAttrs:  true,
+            explicitArray: false,
+            tagNameProcessors: [xml2js.processors.stripPrefix]
+        });
+        parser.parseString(job._doc.data.requestDetails, 
+           function (err, result) {
+            console.log(result.TranscriptRequest);
+            processTranscript(result.TranscriptRequest);                         
+        });
+        // Be sure to invoke the callback when this job has been 
+        // completed or failed. 
+        cb();
+    });
+}
