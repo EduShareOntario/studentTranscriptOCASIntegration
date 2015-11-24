@@ -13,8 +13,11 @@
     "ddp": "https://github.com/EduShareOntario/node-ddp-client/archive/master.tar.gz",
     "ddp-login": "^1.0.9",
     "fibers": "^1.0.7",
+    "later": "^1.2.0",
     "meteor-job": "^1.3.1",
+    "oracledb": "^1.4.0",
     "request": "^2.65.0",
+    "underscore": "^1.8.3",
     "xml2js": "^0.4.15"
   }
 }

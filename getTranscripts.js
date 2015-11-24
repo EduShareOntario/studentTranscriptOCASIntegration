@@ -1,4 +1,4 @@
-﻿process.env.NODE_ENV = "dev";
+﻿﻿process.env.NODE_ENV = "dev";
 
 var https = require('https');
 var request = require('request');
@@ -6,6 +6,7 @@ var DDP = require('ddp');
 var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
+var later = require('later');
 
 console.log('Check and see if OCAS has any transcripts to send us');
 
@@ -15,14 +16,13 @@ var authToken;
 // Setup the DDP connection
 var ddp = new DDP({
     host: config.settings.ddpHost,
-    port: config.settings.ddpPort,
-    use_ejson: true
+    port: config.settings.ddpPort
 });
 
 Job.setDDP(ddp);
 
 // Open the DDP connection
-ddp.connect(function(err) {
+ddp.connect(function(err, wasReconnect) {
     if (err) throw err;
     var options = {
         env: 'METEOR_TOKEN',
@@ -64,20 +64,36 @@ function checkForTranscripts() {
                     var transcriptDetails = JSON.parse(body);
                     console.log("write the request details to the worker queue");
                     // Create a job:
-                    var job = new Job('student-transcript-out', 'saveTranscript', // type of job
-                    // Job data that you define, including anything the job
-                    // needs to complete. May contain links to files, etc...
-                    {
-                        requestId: transcriptDetails.RequestID,
-                        requestDetails: transcriptDetails.PESCXml
-                    }
-                    );
-                    job.priority('normal')
-                    .retry({
-                        retries: 5,
-                        wait: 15 * 60 * 1000
-                    })// 15 minutes between attempts 
-                    .save();               // Commit it to the server
+                    ddp.call("createTranscript", [{title:"bob", description:"getTranscript from OCAS created me", pescCollegeTranscriptXML: transcriptDetails.PESCXml}], function(err,transcriptId){
+                        console.log("createTranscript returned. err:"+JSON.stringify(err)+", transcriptId:"+transcriptId);
+                        var data = {requestId: transcriptDetails.RequestID,transcriptId: transcriptId};
+                        var job = new Job('student-transcript-in', 'saveTranscript', data);
+                        job.priority('normal').retry({retries: 5,wait: 15 * 60 * 1000}); // 15 minutes between attempts
+                        // Commit it to the server
+                        job.save(function (err, result){
+                            //todo: real exception handling.
+                            console.log("job save err:"+err+", result:"+result);
+                            var msg = "Save for transcript requestID:" + transcriptDetails.RequestID + ", transcriptId:"+transcriptId;
+                            if (!err) {
+                                console.log("Success! "+msg);
+                            } else {
+                                console.log("Failure! "+msg);
+                            }
+                        });
+                        job = new Job('student-transcript-in', 'updateTranscriptWithApplicant', data);
+                        job.priority('normal').retry({retries: 5,wait: 15 * 60 * 1000}); // 15 minutes between attempts
+                        // Commit it to the server
+                        job.save(function (err, result){
+                            //todo: real exception handling.
+                            console.log("job save err:"+err+", result:"+result);
+                            var msg = "Save for transcript requestID:" + transcriptDetails.RequestID + ", transcriptId:"+transcriptId;
+                            if (!err) {
+                                console.log("Success! "+msg);
+                            } else {
+                                console.log("Failure! "+msg);
+                            }
+                        });
+                    });
                 }
             }
             
