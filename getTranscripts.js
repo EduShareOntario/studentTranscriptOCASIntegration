@@ -16,9 +16,7 @@ var authToken;
 // Setup the DDP connection
 var ddp = new DDP({
     host: config.settings.ddpHost,
-    port: config.settings.ddpPort,
-    use_ejson: true,
-    useSockJs: true
+    port: config.settings.ddpPort
 });
 
 Job.setDDP(ddp);
