@@ -53,7 +53,7 @@ function saveTranscripts() {
 				sendToDocStore(transcript.pescCollegeTranscriptXML, transcript.applicant);
 			}
 		});	 
-	}
+	});
 }
 
 function sendToDocStore(xml_doc, applicant) {
