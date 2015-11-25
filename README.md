@@ -66,3 +66,6 @@ Each task/job is responsible for completion including recovering from intermitme
 
 ### Monitoring
 TBD
+
+### Send Transcripts to AppxTender
+This component periodically retrieves the transcript XML for matched inbound transcripts and invokes the document transformation service (XML + XSLT --> HTML). This HTML result is then sent to AppXtender along with the relevant index values. At this point, a new AppXtender document is created for this student's transcript.
