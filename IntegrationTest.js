@@ -158,8 +158,7 @@ var processTranscript = function (transcriptRequest) {
         //    todo need to get some of the parameters, reason code
         //    updateSvrtreq(transcriptRequest.TransmissionData.RequestTrackingID,dateInfo.sendDate,dateInfo.stateInd,matchInfo.matchInd, holdInd,dateInfo.dateInd,completionInd,matchInfo.studentId,null, dateInfo.reasonCode).wait();
             }
-        }
-        
+        }        
         
         console.log('what are the values');
     }).run();
