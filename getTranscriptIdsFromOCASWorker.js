@@ -39,7 +39,7 @@ function ddpLoginCB(err, res) {
         //todo what if I can't connect
         throw err;
 
-    Job.processJobs('student-transcript-in', 'getTranscriptsFromOCAS', {pollInterval:1*60*1000, workTimeout: 3*60*1000}, processJob);
+    Job.processJobs('student-transcript-in', 'getTranscriptIdsFromOCAS', {pollInterval:1*60*1000, workTimeout: 3*60*1000}, processJob);
 }
 
 function processJob(job, cb) {
