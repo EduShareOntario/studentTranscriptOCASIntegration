@@ -3,7 +3,6 @@
 var https = require('https');
 var request = require('request');
 var DDP = require('ddp');
-var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
 var Fiber = require('fibers');
@@ -18,43 +17,61 @@ console.log('Start Her Up');
 // Setup the DDP connection
 var ddp = new DDP({
     host: config.settings.ddpHost,
-    port: config.settings.ddpPort,
-    use_ejson: true
+    port: config.settings.ddpPort
 });
 
 Job.setDDP(ddp);
+
 
 // Open the DDP connection
 ddp.connect(function (err) {
     if (err) throw err;
     var options = {
-        env: 'METEOR_TOKEN',
-        method: 'account',
-        account: config.settings.ddpUser,  
+        username: config.settings.ddpUser,
         pass: config.settings.ddpPassword,     
-        retry: 3,       
-        plaintext: false
+        ldap: true
     };
-    DDPlogin(ddp, options, ddpLoginCB);
+    ddp.call("login", [options], ddpLoginCB);   
 });
 
 
 function ddpLoginCB(err) {
-    if (err)
-        //todo what if I can't connect
-        throw err;
-    checkForTranscriptsToProcess();
+    if (err) { 
+        throw err;       
+    }
+    
+    Job.processJobs('student-transcript-out', 'transcriptRequests', { pollInterval: 1 * 60 * 1000, workTimeout: 3 * 60 * 1000 }, processJob);
+    //checkForTranscriptsToProcess();
+    //setInterval(checkForTranscriptsToProcess, 3000);  
 }
 
-
+function processJob(job, cb) {
+    console.log("processJob");	                 
+        var parser = new xml2js.Parser({
+            attrkey:  '@',
+            xmlns:  false,  
+            ignoreAttrs:  true,
+            explicitArray: false,
+            tagNameProcessors: [xml2js.processors.stripPrefix]
+        });
+        parser.parseString(job._doc.data.requestDetails, 
+           function (err, result) {
+                console.log(result.TranscriptRequest);
+                processTranscript(result.TranscriptRequest);
+                job.done();                       
+            }
+        );
+        // Be sure to invoke the callback when this job has been 
+        // completed or failed. 
+        cb();
+}
 
 var authToken;
 var oracleConnection;
 var pInstCode;
 var processTranscript = function (transcriptRequest) {
     Fiber(function () {
-        console.log(transcriptRequest.TransmissionData.RequestTrackingID + '\t' + transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID + '\t' + transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.LastName + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.FirstName)
-        //recipient.constructor === Array
+        console.log(transcriptRequest.TransmissionData.RequestTrackingID + '\t' + transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID + '\t' + transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.LastName + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.FirstName)   
         var studentId = null;
         var matchIndicator = null;
         var holdIndicator = null;
@@ -159,8 +176,7 @@ var processTranscript = function (transcriptRequest) {
         //    updateSvrtreq(transcriptRequest.TransmissionData.RequestTrackingID,dateInfo.sendDate,dateInfo.stateInd,matchInfo.matchInd, holdInd,dateInfo.dateInd,completionInd,matchInfo.studentId,null, dateInfo.reasonCode).wait();
             }
         }
-        
-        
+                
         console.log('what are the values');
     }).run();
 }
@@ -258,8 +274,6 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
         });
     return future;
 };
-
-
 
 
 /**
@@ -390,16 +404,6 @@ var getInstitution = function getInstitution(pInstCode) {
                 });
         });
     return future;
-}
-
-var wrapAsyncWorkWithFuture = Future.wrap(pissedOff);
-
-
-function pissedOff(callback, t1Test) {
-    setTimeout(function () {
-        return ('hello world' + t1Test);
-        console.log('we have executed')
-    }, 3000);
 }
 
 /**
@@ -762,26 +766,3 @@ function checkForTranscriptRequests() {
 }
 
 
-function checkForTranscriptsToProcess() {
-    console.log("Processing transcripts");
-    var workers = Job.processJobs('student-transcript-out', 'transcriptRequests', 
-	  function (job, cb) {
-        // This will only be called if a job is obtained from Job.getWork()         
-        console.log("here");
-        var parser = new xml2js.Parser({
-            attrkey:  '@',
-            xmlns:  false,  
-            ignoreAttrs:  true,
-            explicitArray: false,
-            tagNameProcessors: [xml2js.processors.stripPrefix]
-        });
-        parser.parseString(job._doc.data.requestDetails, 
-           function (err, result) {
-            console.log(result.TranscriptRequest);
-            processTranscript(result.TranscriptRequest);
-        });
-        // Be sure to invoke the callback when this job has been 
-        // completed or failed. 
-        cb();
-    });
-}
