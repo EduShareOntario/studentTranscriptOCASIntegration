@@ -24,14 +24,11 @@ Job.setDDP(ddp);
 ddp.connect(function (err) {
     if (err) throw err;
     var options = {
-        env: 'METEOR_TOKEN',
-        method: 'account',
-        account: config.settings.ddpUser,  
+        username: config.settings.ddpUser,
         pass: config.settings.ddpPassword,     
-        retry: 3,       
-        plaintext: false
+        ldap: true
     };
-    DDPlogin(ddp, options, ddpLoginCB);
+    ddp.call("login", [options], ddpLoginCB);   
 });
 
 function ddpLoginCB(err) {
@@ -39,7 +36,8 @@ function ddpLoginCB(err) {
         //todo what if I can't connect
         throw err;
     
-    checkForTranscriptRequests();
+    //checkForTranscriptRequests();
+    setInterval(checkForTranscriptRequests, 30000);  
 
 }
 
@@ -59,7 +57,7 @@ function checkForTranscriptRequests() {
             function getTranscriptDetails(error, response, body) {
                 if (!error && response.statusCode == 200) {
                     var requestDetails = JSON.parse(body);
-                    console.log("write the transcript request details to the worker queue");
+                    console.log("write the transcript request details to the worker queue " + requestDetails.RequestID);
                     // Create a job:
                     var job = new Job('student-transcript-out', 'transcriptRequests', // type of job
                     // Job data that you define, including anything the job
@@ -76,6 +74,7 @@ function checkForTranscriptRequests() {
                     })// 15 minutes between attempts 
                     .save();               // Commit it to
                 }
+                return;
             }
             
             function getTranscriptRequests(error, response, body) {
