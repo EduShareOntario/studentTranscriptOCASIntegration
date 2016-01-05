@@ -1,7 +1,6 @@
 process.env.NODE_ENV = "dev";
 
 var DDP = require('ddp');
-var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
 var soap = require("soap");
@@ -11,52 +10,55 @@ var request = require('request');
 var njobs=0;
 
 // Setup the DDP connection
+// Setup the DDP connection
 var ddp = new DDP({
-    host: config.settings.ddpHost,
-    port: config.settings.ddpPort,
-    use_ejson: true
+	host: config.settings.ddpHost
+	,port: config.settings.ddpPort
+	,path: config.settings.ddpPath
 });
 
 Job.setDDP(ddp);
 
 // Open the DDP connection
-ddp.connect(function(err) {
-    if (err) throw err;
-    var options = {
-        env: 'METEOR_TOKEN',
-        method: 'account',
-        account: config.settings.ddpUser,  
-        pass: config.settings.ddpPassword,     
-        retry: 3,       
-        plaintext: false
-    };
-    DDPlogin(ddp, options, ddpLoginCB);
+ddp.connect(function(err, wasReconnect) {
+	if (err) throw err;
+	var options = {
+		username: config.settings.ddpUser,
+		pass: config.settings.ddpPassword,
+		ldap: true
+	};
+	ddp.call ("login", [options], ddpLoginCB);
 });
 
 function ddpLoginCB(err) {
     if (err)
         //todo what if I can't connect
         throw err;
-		
-    saveTranscripts();
+
+	Job.processJobs('student-transcript-in', 'saveTranscript', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 }
 
-function saveTranscripts() {
-	var workers = Job.processJobs('student-transcript-in', 'saveTranscript', { concurrency: 4 },
-	  function (job, cb) {
-		ddp.call("getTranscript", [job.data.transcriptId], function(err,transcript){
-		//ddp.call("getTranscript", ["ZXC7fu6CvThj8LLCn"], function(err,transcript){
-			if(err) {
-				console.log(err);
-			}
-			else {
-				sendToDocStore(transcript.pescCollegeTranscriptXML, transcript.applicant);
-			}
-		});	 
+function processJob(job,cb) {
+	ddp.call("getTranscript", [job.data.transcriptId], function(err,transcript){
+		if(err) {
+			console.log(err);
+			job.fail({task:"getTranscript", exception:err});
+			cb();
+		} else {
+			sendToDocStore(transcript.pescCollegeTranscriptXML, transcript.applicant, function(err, result) {
+				if (err) {
+					console.log(err);
+					job.fail({task:"sendToDocStore", exception:err});
+				} else {
+					job.done(result);
+				}
+				cb();
+			});
+		}
 	});
 }
 
-function sendToDocStore(xml_doc, applicant) {
+function sendToDocStore(xml_doc, applicant, cb) {
 
 var currentdate = new Date(); 
 var datetime = currentdate.getFullYear() + "-"
@@ -68,19 +70,21 @@ var datetime = currentdate.getFullYear() + "-"
 
 		
 
-	request.post(
-		'http://transformdoc.georgiantest.com',
-		{ form: { doc: xml_doc } },
-		function (error, response, body) {
+	request.post(config.settings.transcriptToHtmlURL,	{ form: { doc: xml_doc } },	function (error, response, body) {
 			if (!error && response.statusCode == 200) {
+				var transcriptFilename = config.settings.appxtenderFilePath+applicant.studentId+'.html'
 				//now that we have the html transcript, write out the file to the file share so documentum can access it later when we do the API call
-				fs.writeFile('Z:/'+applicant.studentId+'.html', body, function (err) {
-					if (err) return console.log(err);
+				fs.writeFile(transcriptFilename, body, function (err) {
+					if (err) {
+						cb(err);
+						return;
+					}
 						
 					//initiate call to AppXtender API
 					soap.createClient(config.settings.appxtenderURL, {forceSoap12Headers: true}, function(err, client){
 						if(err) {
 							console.log(err);
+							cb(err);
 							return;
 						}
 					 
@@ -88,40 +92,36 @@ var datetime = currentdate.getFullYear() + "-"
 						var newData = {userId: config.settings.appxtenderUser, password: config.settings.appxtenderPass, features: 0};
 
 						var appxtender = {
-											//these are the creation data variables
-											dsn: config.settings.appxtenderDSN,
-											appid: config.settings.appxtenderAppId,
-											filepath: config.settings.appxtenderFilePath+applicant.studentId+'.html',
-											filetype: 'FT_HTML',
-											
-											//these are the appxtender index variables
-											id: applicant.studentId, //note that id is SPRIDEN ID
-											pidm: applicant.pidm,
-											document_type: 'STUDENT TRANSCRIPT',
-											last_name: applicant.lastName,
-											first_name: applicant.firstName,
-											ssn: '100000000',
-											birth_date: new Date(applicant.birthDate).toISOString().slice(0,10).replace(/-/g,""),
-											term_code: applicant.termCode,
-											routing_status: 'OPEN',
-											activity_date: datetime,
-											ocas_number: applicant.applicantId
-							};
+								//these are the creation data variables
+								dsn: config.settings.appxtenderDSN,
+								appid: config.settings.appxtenderAppId,
+								filepath: transcriptFilename,
+								filetype: 'FT_HTML',
+
+								//these are the appxtender index variables
+								id: applicant.studentId, //note that id is SPRIDEN ID
+								pidm: applicant.pidm,
+								document_type: 'STUDENT TRANSCRIPT',
+								last_name: applicant.lastName,
+								first_name: applicant.firstName,
+								ssn: '100000000',
+								birth_date: applicant.birthDate.toISOString().slice(0,10).replace(/-/g,""),
+								term_code: applicant.termCode,
+								routing_status: 'OPEN',
+								activity_date: datetime,
+								ocas_number: applicant.applicantId
+						};
 						
 						client.Login( newData, function(err, response){
-
-					   
 								if(err) {
-									console.log(err);
+									cb(err);
 									return;
-								}
-								
-								else {
+								}	else {
 									var sessionTicket = response.LoginResult;
 
 									soap.createClient(config.settings.appxtenderURL, {forceSoap12Headers: true}, function(err, client){
 										if(err) {
-											console.log(err);
+											cb(err);
 											return;
 										}
 										
@@ -150,11 +150,11 @@ var datetime = currentdate.getFullYear() + "-"
 										
 										client.CreateNewDocument( {sessionTicket: sessionTicket, xmlAxDocumentCreationData: creationData, xmlDocIndex: docIndex}, function(err, response){
 											if(err) {
-												console.log(err);
+												cb(err);
 												return;
 											}
 											console.log('AppXTender Document Success \n ---------------- \n\n ' + response.CreateNewDocumentResult);
-											process.exit();
+											cb(response.CreateNewDocumentResult);
 										});
 									});
 									

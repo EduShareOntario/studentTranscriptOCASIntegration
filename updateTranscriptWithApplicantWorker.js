@@ -3,7 +3,6 @@ process.env.NODE_ENV = "dev";
 var https = require('https');
 var request = require('request');
 var DDP = require('ddp');
-var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
 var later = require('later');
@@ -14,8 +13,9 @@ console.log('Update transcript with OCAS Applicant info');
 
 // Setup the DDP connection
 var ddp = new DDP({
-  host: config.settings.ddpHost,
-  port: config.settings.ddpPort
+  host: config.settings.ddpHost
+  ,port: config.settings.ddpPort
+  ,path: config.settings.ddpPath
 });
 
 Job.setDDP(ddp);
@@ -85,9 +85,9 @@ function processJob(job, cb){
             cb();
             return;
           }
-          var firstMatch = result[0];
+          var firstMatch = result.rows[0];
           if (!firstMatch) {
-            job.fail({task:"failed to find applicant", data: ocasApplicantId});
+            job.fail({task:"Find applicant", data: ocasApplicantId});
             cb();
             return;
           }

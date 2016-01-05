@@ -9,12 +9,11 @@ var later = require('later');
 
 console.log('Fetch the transcript from OCAS and create downstream jobs; updateTranscriptWithApplicant, saveTranscripts');
 
-var authToken;
-
 // Setup the DDP connection
 var ddp = new DDP({
-  host: config.settings.ddpHost,
-  port: config.settings.ddpPort
+  host: config.settings.ddpHost
+  ,port: config.settings.ddpPort
+  ,path: config.settings.ddpPath
 });
 
 Job.setDDP(ddp);
@@ -37,12 +36,9 @@ function ddpLoginCB(err, res) {
     throw err;
 
   Job.processJobs('student-transcript-in', 'getTranscriptFromOCAS', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
-  //processJob({data:{ocasRequestId:'asdfasdf3'}}, function(){console.log("processJob is done!");});
 }
 
-
-
-function acquireAuthToken(callback) {
+function withAuthentication(callback) {
   request.post(config.settings.loginUrl, { form: { Username: config.settings.userName, Password: config.settings.passWord, grant_type: config.settings.grantType } }, function(error,response, body) {
     var authToken;
     if (!error && response.statusCode != 200) {
@@ -57,13 +53,18 @@ function acquireAuthToken(callback) {
 }
 
 // todo: Acknowledge to OCAS that we have received the transcript!!!
-function sendAcknowledgmentToOCAS() {
+function sendAcknowledgmentToOCAS(authToken, ocasRequestId) {
 }
 
 function processJob(job, cb) {
   var ocasRequestId = job.data.ocasRequestId
-  //todo: handle invalid job data; no ocasRequestId
-  acquireAuthToken(function(err, authToken){
+  if (!ocasRequestId) {
+    // No point retrying this job!
+    job.retry({retries:0});
+    job.fail({task:"validate job", exception:"Missing required ocasRequestId"});
+    cb();
+  }
+  withAuthentication(function(err, authToken){
     if (err) {
       job.fail({task:"ocasAcquireAuthToken", exception:err});
       cb();
@@ -75,7 +76,6 @@ function processJob(job, cb) {
         }
       };
       request(httpOptions, function (error, response, body) {
-        //todo: handle invalid authToken scenario, 401 Unauthorized
         if (error || response.statusCode != 200) {
           job.fail({task:"ocasGetTranscriptDetail", exception:error, data: body});
           cb();
@@ -83,15 +83,15 @@ function processJob(job, cb) {
         }
         var transcriptDetails = JSON.parse(body);
         // Create the Transcript
-        ddp.call("createTranscript", [{title:"bob", description:"getTranscript from OCAS created me", pescCollegeTranscriptXML: transcriptDetails.PESCXml}], function(err,transcriptId) {
+        ddp.call("createTranscript", [{title:"In-bound Transcript", description:"getTranscriptFromOCAS job created me", pescCollegeTranscriptXML: transcriptDetails.PESCXml}], function(err,transcriptId) {
           if (err) {
             // todo: What should we tell OCAS when we can't save a Transcript they've provided?
-            // ? Acknowledge or not
+            // todo: Depends on why it can't save. Maybe it was a temporary system state and nothing wrong with the data provided by OCAS.
             job.fail({task: "createTranscript", exception: err, data: transcriptDetails});
             cb();
           } else {
             // Ok, we have a Transcript saved, now it's time to tell OCAS so they don't send it again and also schedule downstream jobs.
-            sendAcknowledgmentToOCAS();
+            sendAcknowledgmentToOCAS(authToken, ocasRequestId);
             var jobData = {requestId: transcriptDetails.RequestID, transcriptId: transcriptId};
             var updateTranscriptWithApplicantJob = new Job('student-transcript-in', 'updateTranscriptWithApplicant', jobData);
             updateTranscriptWithApplicantJob.priority('normal').retry({retries: Job.forever, wait: 24*60*60*1000, backoff: 'constant'}); // try once a day.

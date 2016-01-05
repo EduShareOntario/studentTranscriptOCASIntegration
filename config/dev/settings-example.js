@@ -8,11 +8,18 @@
     requestsNoResponseUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/no_response',
     transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     sendTranscriptUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
+    transcriptToHtmlURL: "https://xxxxxx.com/transformdoc",
     ddpHost : '',
     ddpPort : ' ',
     ddpUser : 'xxxxxxxxxxxxxxxxx',
     ddpPassword : 'xxxxxxxxxxxxx',
     oracleUserId        : "********",
     oraclePassword      : "*******",
-    oracleConnectString : "****************************************"
+    oracleConnectString : "****************************************",
+    appxtenderURL: "**",
+    appxtenderUser: "**",
+    appxtenderPass: "**",
+    appxtenderDSN: "**",
+    appxtenderAppId: "**",
+    appxtenderFilePath: "c:/apps/local/transcript/docs/"
 }
