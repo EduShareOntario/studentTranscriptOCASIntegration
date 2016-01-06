@@ -16,10 +16,12 @@
     oracleUserId        : "********",
     oraclePassword      : "*******",
     oracleConnectString : "****************************************",
-    appxtenderURL: "**",
-    appxtenderUser: "**",
-    appxtenderPass: "**",
-    appxtenderDSN: "**",
-    appxtenderAppId: "**",
-    appxtenderFilePath: "c:/apps/local/transcript/docs/"
+    appxtenderURL: 'http://tsdocumentum01/AppXtenderServices/AxServicesInterface.asmx?WSDL',
+    appxtenderUser: '**',
+    appxtenderPass: '**',
+    appxtenderDSN: 'UPG3',
+    appxtenderAppId: '522',
+    // The following must point to the same shared filesystem path
+    appxtenderFilePath: 'E:/DOCUMENTUM/incoming_transcripts/',
+    localFilePath: "z:/DOCUMENTUM/incoming_transcripts/"
 }
