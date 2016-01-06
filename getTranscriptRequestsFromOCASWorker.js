@@ -1,6 +1,4 @@
-﻿process.env.NODE_ENV = "dev";
-
-var https = require('https');
+﻿var https = require('https');
 var request = require('request');
 var DDP = require('ddp');
 var Job = require('meteor-job');
