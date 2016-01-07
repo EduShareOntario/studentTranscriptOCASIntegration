@@ -12,6 +12,7 @@ $ErrorActionPreference="Stop"
 #
 $installScript = "install.ps1"
 $latestInstallScript = "current\private\config\install.ps1"
+$replaceInstallScript = $false
 
 $workingDir = (Get-Location).path
 $nonce = $(Get-Date -Format 'yyyymmddThhmmssmsms')
@@ -20,7 +21,7 @@ $installLogFilename = "install_$($nonce).log"
 # Capture the script output
 powershell.exe -noprofile -file $installScript | tee $installLogFilename
 
-if ( $lastexitcode -eq 0 ) {
+if ( $lastexitcode -eq 0 -and $replaceInstallScript) {
     # Replace the current install.ps1 script with the latest project version, if it exists.
     $ErrorActionPreference="Continue"
     $jobName="replaceInstallScript_$($nonce)"
