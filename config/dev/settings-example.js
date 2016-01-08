@@ -13,6 +13,7 @@
     ddpPort : ' ',
     ddpUser : 'xxxxxxxxxxxxxxxxx',
     ddpPassword : 'xxxxxxxxxxxxx',
+    jobCollectionName: 'student-transcript',
     oracleUserId        : "********",
     oraclePassword      : "*******",
     oracleConnectString : "****************************************",

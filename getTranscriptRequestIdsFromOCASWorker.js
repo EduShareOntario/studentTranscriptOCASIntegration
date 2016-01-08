@@ -2,15 +2,17 @@
 
 var processJobConfig = {
     root : 'student-transcript',
-    type : 'getInboundTranscriptRequestIdsFromOCAS',
+    type : 'getOutboundTranscriptRequestIdsFromOCAS',
     options : {pollInterval:1*30*1000, workTimeout: 3*60*1000},
-    ocasUrl : config.settings.transcriptsNoResponseUrl
+    ocasUrl : config.settings.requestsNoResponseUrl
 }
 
 var createJobConfig = {
     root : 'student-transcript',
-    type : 'getTranscriptDetailsFromOCAS'
+    type : 'getTranscriptRequestDetailsFromOCAS'
 }
 
 var worker = require ('./getRequestIdsFromOCAS');
 worker.start(processJobConfig, createJobConfig);
+
+
