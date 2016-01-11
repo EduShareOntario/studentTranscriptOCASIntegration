@@ -14,9 +14,15 @@
     ddpUser : 'xxxxxxxxxxxxxxxxx',
     ddpPassword : 'xxxxxxxxxxxxx',
     jobCollectionName: 'student-transcript',
-    oracleUserId        : "********",
-    oraclePassword      : "*******",
-    oracleConnectString : "****************************************",
+    dbConfig : {
+        user: 'xx',
+        password: 'xx',
+        connectString: 'localhost/xe',
+        poolMax: 20,
+        poolMin: 2,
+        poolIncrement: 2,
+        poolTimeout: 10
+    },
     appxtenderURL: 'http://tsdocumentum01/AppXtenderServices/AxServicesInterface.asmx?WSDL',
     appxtenderUser: '**',
     appxtenderPass: '**',

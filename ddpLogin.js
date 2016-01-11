@@ -11,7 +11,7 @@ function onSuccess(cb) {
     host: config.settings.ddpHost
     ,port: config.settings.ddpPort
     ,path: config.settings.ddpPath
-    //,useSockJs: true
+    ,useSockJs: true
     //,url: 'ws://localhost:3000/transcript/websocket'
     //,url: config.settings.ddpUrl
   });

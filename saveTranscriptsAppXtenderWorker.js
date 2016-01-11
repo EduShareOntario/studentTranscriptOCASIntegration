@@ -4,37 +4,14 @@ var config = require('app-config');
 var soap = require("soap");
 var fs = require('fs');
 var request = require('request');
+var ddpLogin = require('./ddpLogin');
 
-var njobs=0;
-
-// Setup the DDP connection
-// Setup the DDP connection
-var ddp = new DDP({
-	host: config.settings.ddpHost
-	,port: config.settings.ddpPort
-	,path: config.settings.ddpPath
+var ddp
+ddpLogin.onSuccess(function (ddpConnection){
+	ddp = ddpConnection;
+	Job.setDDP(ddpConnection);
+	Job.processJobs(config.settings.jobCollectionName, 'saveTranscript', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 });
-
-Job.setDDP(ddp);
-
-// Open the DDP connection
-ddp.connect(function(err, wasReconnect) {
-	if (err) throw err;
-	var options = {
-		username: config.settings.ddpUser,
-		pass: config.settings.ddpPassword,
-		ldap: true
-	};
-	ddp.call ("login", [options], ddpLoginCB);
-});
-
-function ddpLoginCB(err) {
-    if (err)
-        //todo what if I can't connect
-        throw err;
-
-	Job.processJobs('student-transcript-in', 'saveTranscript', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
-}
 
 function processJob(job,cb) {
 	ddp.call("getTranscript", [job.data.transcriptId], function(err,transcript){
@@ -65,8 +42,6 @@ var datetime = currentdate.getFullYear() + "-"
                 + currentdate.getHours() + ":"  
                 + currentdate.getMinutes() + ":" 
                 + currentdate.getSeconds();
-
-		
 
 	request.post(config.settings.transcriptToHtmlURL,	{ form: { doc: xml_doc } },	function (error, response, body) {
 			if (!error && response.statusCode == 200) {
@@ -153,12 +128,9 @@ var datetime = currentdate.getFullYear() + "-"
 											cb(null, response.CreateNewDocumentResult);
 										});
 									});
-									
 								}
 						});
-
 					});
-					//end call to AppXtender API
 				});
 			}
 		}

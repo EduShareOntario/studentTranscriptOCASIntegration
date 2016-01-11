@@ -12,7 +12,7 @@ console.log('Fetch the transcript from OCAS and create downstream jobs; updateTr
 var ddp
 ddpLogin.onSuccess(function (ddpConnection){
   ddp = ddpConnection;
-  Job.setDDP(ddpConnection, config.settings.jobCollectionName);
+  Job.setDDP(ddpConnection);
   Job.processJobs(config.settings.jobCollectionName, 'getTranscriptDetailsFromOCAS', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 });
 
