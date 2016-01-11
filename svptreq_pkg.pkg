@@ -1117,7 +1117,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
          p_svrtreq_student_no_3,
         'P',
         '~',
-        'EDI',
+        'XML',
          USER,
          TRUNC(SYSDATE) );
 
@@ -1157,7 +1157,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
        ( p_svrtnte_bgn02,
          DECODE(SUBSTR(p_svrtnte_note,5,4),
         'DATE','SENDDATE='||SUBSTR(p_svrtnte_note,9,8),p_svrtnte_note),
-        'EDI',
+        'XML',
          USER,
          TRUNC(SYSDATE) );
 
@@ -1456,7 +1456,7 @@ END matchStudentInfo;
   VALUES
        ( p_svrtdup_bgn02,
          p_svrtdup_pidm,
-        'EDI',
+        'XML',
          USER,
          TRUNC(SYSDATE) );
 
