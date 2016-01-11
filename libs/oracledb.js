@@ -22,7 +22,7 @@
             
             // If pool is defined - show connectionsOpen and connectionsInUse
             if (typeof pool !== "undefined") {
-             //  console.log("INFO: dbConnect Connections open: " + pool.connectionsOpen + "    Connections in use: " + pool.connectionsInUse);
+               console.log("INFO: dbConnect Connections open: " + pool.connectionsOpen + "    Connections in use: " + pool.connectionsInUse);
             }
             
             // Else everything looks good
@@ -71,9 +71,7 @@
         });
 
     }
-    
-    
-    
+            
     ////////////
     // COMMIT //
     ////////////
@@ -106,12 +104,12 @@
     // RELEASE A CONNECTION //
     //////////////////////////
     var doRelease = function (connection) {
-        
+       // connection.close();
         connection.release(function (err) {
             if (err) {
                 console.log("ERROR: Unable to RELEASE the connection: ", err);
             }
-            //console.log("INFO: doRelease Connections open: " + pool.connectionsOpen + "    Connections in use: " + pool.connectionsInUse);
+           console.log("INFO: doRelease Connections open: " + pool.connectionsOpen + "    Connections in use: " + pool.connectionsInUse);
             return;
         });
 

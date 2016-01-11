@@ -12,6 +12,7 @@ var dbconfig = require("./libs/dbconfig.js");
 var db = require("./libs/oracledb.js");
 var oracledb = require('oracledb');
 var xml2js = require('xml2js');
+var orawrap = require('orawrap');
 
 //var connPool;
 
@@ -48,18 +49,18 @@ function ddpLoginCB(err) {
         user: dbconfig.user,
         password: dbconfig.password,
         connectString: dbconfig.connectString,
+        connectionClass: "XMLTRANSCRIPTS",
         poolMax: 25,
-        poolMin: 1,
-        poolIncrement: 1,
-        poolTimeout: 30      
+        poolMin: 2,
+        poolIncrement: 5,
+        poolTimeout: 4      
     }, function (err, pool) {
         
         if (err) {
             console.log("ERROR: ", new Date(), ": createPool() callback: " + err.message);
             return;
         }
-        require('./libs/oracledb.js')(pool);
-        //connPool = pool;
+        require('./libs/oracledb.js')(pool);    
         console.log("start");
         Job.processJobs('student-transcript-out', 'transcriptRequests', { pollInterval: 1 * 60 * 1000, workTimeout: 3 * 60 * 1000 }, processJob);
    
@@ -261,7 +262,6 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
             return;
         }
     
-
         db.doExecute(connection,
             "BEGIN georgian.svptreq_pkg.matchStudentInfo(:p_svrtreq_bgn02, :p_svrtreq_birth_date,:p_svrtreq_sex,:p_studentId,:p_svrtreq_last_name,:p_svrtreq_first_name,:p_svrtreq_state_ind,:p_svrtreq_match_ind,:p_spriden_pidm,:p_svrtreq_id ); END;",
             {
