@@ -6,37 +6,16 @@ var config = require('app-config');
 var later = require('later');
 var _ = require('underscore');
 var db = require('oracledb');
+var ddpLogin = require('./ddpLogin');
 
 console.log('Update transcript with OCAS Applicant info');
 
-// Setup the DDP connection
-var ddp = new DDP({
-  host: config.settings.ddpHost
-  ,port: config.settings.ddpPort
-  ,path: config.settings.ddpPath
+var ddp
+ddpLogin.onSuccess(function (ddpConnection){
+  ddp = ddpConnection;
+  Job.setDDP(ddpConnection);
+  Job.processJobs(config.settings.jobCollectionName, 'updateTranscriptWithApplicant', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 });
-
-Job.setDDP(ddp);
-
-// Open the DDP connection
-ddp.connect(function(err, wasReconnect) {
-  if (err) throw err;
-  var options = {
-    username: config.settings.ddpUser,
-    pass: config.settings.ddpPassword,
-    ldap: true
-  };
-  ddp.call ("login", [options], ddpLoginCB);
-});
-
-function ddpLoginCB(err, res) {
-  console.log("ddpLoginCB with "+JSON.stringify(err)+", and "+JSON.stringify(res));
-  if (err)
-    //todo: what if I can't connect
-    throw err;
-
-  Job.processJobs('student-transcript-in', 'updateTranscriptWithApplicant', {pollInterval:1000, prefetch: 2, workTimeout: 1*60*1000}, processJob);
-}
 
 function processJob(job, cb){
   console.log("processing job "+job.doc._id+" data:"+JSON.stringify(job.data));
