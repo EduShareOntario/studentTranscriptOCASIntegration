@@ -9,7 +9,7 @@ var ocasLogin = require('./ocasLogin');
 console.log('Fetch the Transcript Request details from OCAS and create downstream jobs; transcriptRequests');
 
 ddpLogin.onSuccess(function (ddpConnection){
-  Job.setDDP(ddpConnection, config.settings.jobCollectionName);
+  Job.setDDP(ddpConnection);
   Job.processJobs(config.settings.jobCollectionName, 'getTranscriptRequestDetailsFromOCAS', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 });
 
