@@ -8,11 +8,21 @@
     requestsNoResponseUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/no_response',
     transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     sendTranscriptUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
+    transcriptToHtmlURL: "https://xxxxxx.com/transformdoc",
     ddpHost : '',
     ddpPort : ' ',
     ddpUser : 'xxxxxxxxxxxxxxxxx',
     ddpPassword : 'xxxxxxxxxxxxx',
+    jobCollectionName: 'student-transcript',
     oracleUserId        : "********",
     oraclePassword      : "*******",
-    oracleConnectString : "****************************************"
+    oracleConnectString : "****************************************",
+    appxtenderURL: 'http://tsdocumentum01/AppXtenderServices/AxServicesInterface.asmx?WSDL',
+    appxtenderUser: '**',
+    appxtenderPass: '**',
+    appxtenderDSN: 'UPG3',
+    appxtenderAppId: '522',
+    // The following must point to the same shared filesystem path
+    appxtenderFilePath: 'E:/DOCUMENTUM/incoming_transcripts/',
+    localFilePath: "z:/DOCUMENTUM/incoming_transcripts/"
 }

@@ -1,9 +1,6 @@
-process.env.NODE_ENV = "dev";
-
 var https = require('https');
 var request = require('request');
 var DDP = require('ddp');
-var DDPlogin = require('ddp-login');
 var Job = require('meteor-job');
 var config = require('app-config');
 var later = require('later');
@@ -14,8 +11,9 @@ console.log('Update transcript with OCAS Applicant info');
 
 // Setup the DDP connection
 var ddp = new DDP({
-  host: config.settings.ddpHost,
-  port: config.settings.ddpPort
+  host: config.settings.ddpHost
+  ,port: config.settings.ddpPort
+  ,path: config.settings.ddpPath
 });
 
 Job.setDDP(ddp);
@@ -77,17 +75,18 @@ function processJob(job, cb){
           cb();
           return;
         }
-        //todo: use earliest term code when more than one match!
-        var applicantQuery = "select distinct b.spriden_pidm,b.spriden_id,c.spbpers_birth_date,a.svroccc_term_code, b.spriden_first_name, b.spriden_last_name FROM svroccc a,spriden b,spbpers c WHERE a.svroccc_OCAS_APPL_NUM = :ocasApplicantId AND b.spriden_change_ind is null AND b.spriden_pidm = a.svroccc_pidm AND b.spriden_pidm = c.spbpers_pidm";
+        var applicantQuery = "select distinct b.spriden_pidm,b.spriden_id,c.spbpers_birth_date,a.svroccc_term_code, b.spriden_first_name, b.spriden_last_name FROM svroccc a,spriden b,spbpers c WHERE a.svroccc_OCAS_APPL_NUM = :ocasApplicantId AND b.spriden_change_ind is null AND b.spriden_pidm = a.svroccc_pidm AND b.spriden_pidm = c.spbpers_pidm order by a.svroccc_term_code";
         connection.execute(applicantQuery, {ocasApplicantId:ocasApplicantId}, function(err, result){
+          releaseConnection(connection);
           if (err) {
             job.fail({task:"get applicant query", exception:err});
             cb();
             return;
           }
-          var firstMatch = result[0];
+          //Use earliest term code when more than one match; order is essential!
+          var firstMatch = result.rows[0];
           if (!firstMatch) {
-            job.fail({task:"failed to find applicant", data: ocasApplicantId});
+            job.fail({task:"Find applicant", data: ocasApplicantId});
             cb();
             return;
           }
@@ -108,7 +107,6 @@ function processJob(job, cb){
             job.done();
             cb();
           });
-          releaseConnection(connection);
         })
       });
     });
