@@ -1,1 +1,1 @@
-get-service | foreach-object {if ($_.name.startsWith('Transcript')) { write-output ($_.name + ', status:'+$_.status); } }
+get-service | foreach-object {if ($_.name.startsWith('TranscriptWorker')) { write-output ($_.name + ', status:'+$_.status); } }
