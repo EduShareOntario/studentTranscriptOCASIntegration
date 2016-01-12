@@ -8,12 +8,7 @@ var config = require('app-config');
 function onSuccess(cb) {
   // Setup the DDP connection
   var ddp = new DDP({
-    host: config.settings.ddpHost
-    ,port: config.settings.ddpPort
-    ,path: config.settings.ddpPath
-    ,useSockJs: true
-    //,url: 'ws://localhost:3000/transcript/websocket'
-    //,url: config.settings.ddpUrl
+    url: config.settings.ddpUrl
   });
 
   function ddpLoginCB(err, res) {
@@ -27,7 +22,9 @@ function onSuccess(cb) {
 
   // Open the DDP connection
   ddp.connect(function(err, wasReconnect) {
-    if (err) throw err;
+    if (err) {
+      throw err;
+    }
     var options = {
       username: config.settings.ddpUser,
       pass: config.settings.ddpPassword,
