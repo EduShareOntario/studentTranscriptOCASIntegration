@@ -1,5 +1,4 @@
-﻿process.env.NODE_ENV = "dev";
-var config = require('app-config');
+﻿var config = require('app-config');
  
 var processJobConfig = {
     root : 'student-transcript',

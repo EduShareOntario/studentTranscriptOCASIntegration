@@ -1,6 +1,4 @@
-﻿process.env.NODE_ENV = "dev";
-
-var https = require('https');
+﻿var https = require('https');
 var request = require('request');
 var DDP = require('ddp');
 var Job = require('meteor-job');
@@ -9,15 +7,11 @@ var Fiber = require('fibers');
 var Future = require('fibers/future');
 var fs = Future.wrap(require('fs'));
 var dbconfig = require("./libs/dbconfig.js");
-//var db = require("./libs/oracledb.js");
 var oracledb = require('oracledb');
 var xml2js = require('xml2js');
 var orawrap = require('orawrap');
 var ddpLogin = require('./ddpLogin');
 var ddp;
-var intCtr = 0;
-
-//var connPool;
 
 console.log('Start Her Up');
 
@@ -30,7 +24,7 @@ orawrap.createPool(config.settings.dbConfig, function (err, pool) {
         ddp = ddpConnection;
         Job.setDDP(ddpConnection);
        // Job.processJobs(config.settings.jobCollectionName, 'updateTranscriptWithApplicant', { pollInterval: 5000, workTimeout: 1 * 60 * 1000 }, processJob);
-        Job.processJobs('student-transcript-out', 'transcriptRequests', { pollInterval: 1 * 60 * 1000, workTimeout: 3 * 60 * 1000 }, processJob);
+        Job.processJobs(config.settings.jobCollectionName, 'transcriptRequests', { pollInterval: 1 * 60 * 1000, workTimeout: 3 * 60 * 1000 }, processJob);
         //checkForTranscriptsToProcess();
         //setInterval(checkForTranscriptsToProcess, 3000);  
     });
@@ -60,10 +54,8 @@ var authToken;
 var oracleConnection;
 var pInstCode;
 var processTranscript = function (transcriptRequest ) {
-    Fiber(function () {
-        intCtr++;
-      //  console.log(transcriptRequest.TransmissionData.RequestTrackingID + '\t' + transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID + '\t' + transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.LastName + '\t' + transcriptRequest.Request.RequestedStudent.Person.Name.FirstName)
-        console.log(intCtr + ":" + transcriptRequest.TransmissionData.RequestTrackingID);
+    Fiber(function () {     
+        console.log(transcriptRequest.TransmissionData.RequestTrackingID);
         var studentId = null;
         
         var matchIndicator = null;
@@ -128,17 +120,18 @@ var processTranscript = function (transcriptRequest ) {
             stateIndicator = "M";
         }
         
-        ////todo not sure if this code should execute conditionally 
-        console.log(stateIndicator);
+        //todo not sure if this code should execute conditionally 
         if (stateIndicator == "D") {
             var dateInfo = calculateSendDate(actionCode, transcriptRequest.TransmissionData.RequestTrackingID).wait();
             sendDate = dateInfo.sendDate;
             stateIndicator = dateInfo.stateInd;
         }
-        
-        //var t1 = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/");
-        //var t2 = new Date(Date.parse(t1));
-        var birthDate = new Date(Date.parse(transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/")));
+
+        //Javascript's Date class doesn't represent a date, it represents a timestamp so I need to modify the value       
+        var sourceDate = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace(/-/g, "/") + " EST";
+
+        var birthDate = new Date(Date.parse(sourceDate));
+
         writeRequest(transcriptRequest, 
             studentId,
             stateIndicator,
@@ -170,7 +163,6 @@ var processTranscript = function (transcriptRequest ) {
             }
         }
                 
-       // console.log('what are the values');
     }).run();
 }
 
@@ -188,14 +180,14 @@ var institution = function (pId, pIndex) {
  */
 var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
     var future = new Future();
-    var birthDate = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace("-", "/");
-    //var t2 = new Date(Date.parse(t1));
+    var sourceDate = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace(/-/g, "/") + " EST";    
+    var birthDate = new Date(Date.parse(sourceDate));
     
     orawrap.execute("BEGIN georgian.svptreq_pkg.matchStudentInfo(:p_svrtreq_bgn02, :p_svrtreq_birth_date,:p_svrtreq_sex,:p_studentId,:p_svrtreq_last_name,:p_svrtreq_first_name,:p_svrtreq_state_ind,:p_svrtreq_match_ind,:p_spriden_pidm,:p_svrtreq_id ); END;",
             {
         // bind variables                   
         p_svrtreq_bgn02: transcriptRequest.TransmissionData.RequestTrackingID,
-        p_svrtreq_birth_date: new Date(Date.parse(birthDate)),
+        p_svrtreq_birth_date: birthDate,
         p_svrtreq_sex: transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0, 1),
         p_studentId : transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID,
         p_svrtreq_last_name: transcriptRequest.Request.RequestedStudent.Person.Name.LastName,
@@ -207,7 +199,7 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
     },	
         function (err, result) {
         if (err) {
-            console.error(err.message);
+            console.error("matchStudentInfo: " + err.message);
             return;
         }
         var matchInfo = {};
@@ -215,9 +207,6 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
         matchInfo.matchInd = result.outBinds.p_svrtreq_match_ind;
         matchInfo.pidm = result.outBinds.p_spriden_pidm;
         matchInfo.studentId = result.outBinds.p_svrtreq_id;
-        //console.log('do we have a match ' + result.outBinds.p_svrtreq_match_ind);
-        //console.log('state ' + result.outBinds.p_svrtreq_state_ind);
-        //db.doRelease(connection);
         future.return(matchInfo);
     });  
     return future;
@@ -247,7 +236,7 @@ var calculateSendDate = function calculateSendDate(actionCode, trackingId) {
     },	
     function (err, result) {
         if (err) {
-            console.error(err.message);
+            console.error("calculateSendDate: " + err.message);
             return;
         }
         var dateData = {};
@@ -279,7 +268,7 @@ var checkForHolds = function checkForHolds(pPidm) {
     },	
             function (err, result) {
         if (err) {
-            console.error(err.message);
+            console.error("checkForHolds: " + err.message);
             return;
         }
         var holdData = {};
@@ -307,7 +296,7 @@ var getInstitution = function getInstitution(pInstCode) {
         },
             function (err, result) {
             if (err) {
-                console.error(err.message);
+                console.error("getInstitution: " + err.message);
                 return;
             }
             var instData = {};
@@ -336,13 +325,11 @@ var getInstitution = function getInstitution(pInstCode) {
  */
 var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndicator, matchIndicator, holdIndicator, dateIndicator, birthDate, actionCode, completionInd, sendDate, firstMiddleName, secondMiddleName, formerSurName) {
     var future = new Future();
-    
     var genderCode = transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0, 1);
     
     var exitDate = null;
     if (transcriptRequest.Request.RequestedStudent.Attendance.ExitDate != undefined) {
-        var tranExitDate = transcriptRequest.Request.RequestedStudent.Attendance.ExitDate.replace("-", "/");
-       // var t2 = new Date(Date.parse(t1));
+        var tranExitDate = transcriptRequest.Request.RequestedStudent.Attendance.ExitDate.replace(/-/g, "/") + " EST";
         exitDate = new Date(Date.parse(tranExitDate));
     }
     
@@ -352,9 +339,10 @@ var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndi
 		        { autoCommit: true },   
                 function (err, result) {
             if (err) {
-                console.error(err.message + ' ' + transcriptRequest.TransmissionData.RequestTrackingID);
+                console.error("writeRequest: " + err.message + ' ' + transcriptRequest.TransmissionData.RequestTrackingID);
                 return;
             }
+
             future.return();
         });  
     return future;
@@ -376,7 +364,7 @@ var writeAgency = function writeAgency(trackingId, person) {
                                 { autoCommit: true },
                             function (err, result) {
                             if (err) {
-                                console.error(err.message);
+                                console.error("writeAgency: " + err.message);
                                 return;
                             }
                         });
@@ -392,7 +380,7 @@ var writeAgency = function writeAgency(trackingId, person) {
                         { autoCommit: true },
                         function (err, result) {
                     if (err) {
-                        console.error(err.message);
+                        console.error("writeAgency: " + err.message);
                         return;
                     }
                 });
@@ -413,7 +401,6 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
     var noteMessage = "";
     
     //todo get the userid instead of using my name, change origin to xml from deletexml
-    console.log("we are firing");
     if (recipient.constructor === Array) {
         var numEntries = recipient.length - 1;
         for (var index = 0; index <= numEntries; ++index) {           
@@ -425,7 +412,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
                     recipientCode = recipient[index].Receiver.RequestorReceiverOrganization.CSIS;
                 } else {
                     //todo can this happen
-                    console.log('this is an error');
+                    console.log("writeRequestNotes: this is an error");
                 }
                 //var recipeent = recipient[index].Receiver.RequestorReceiverOrganization.USIS;
                 var instName = getInstitution(recipientCode).wait();
@@ -439,7 +426,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
                             { autoCommit: true },
                             function (err, result) {
                         if (err) {
-                            console.error(err.message);
+                            console.error("writeRequestNotes: " + err.message);
                             return;
                         }
                     });
@@ -456,7 +443,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
                 recipientCode = recipient.Receiver.RequestorReceiverOrganization.CSIS;
             } else {
                 //todo can this happen
-                console.log('this is an error');
+                console.log("writeRequestNotes: this is an error");
             }
             var instName = getInstitution(recipientCode).wait();
             noteMessage = "inst=" + recipientCode + "/" + instName;
@@ -469,7 +456,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
                             { autoCommit: true },
                             function (err, result) {
                     if (err) {
-                        console.error(err.message);
+                        console.error("writeRequestNotes: " + err.message);
                         return;
                     }
                 });
@@ -501,7 +488,7 @@ var writeTranscript = function writeTranscript(pPidm, pStudentId, pTrackingId) {
         },	 
            function (err, result) {
             if (err) {
-                console.error(err.message);
+                console.error("writeTranscript: " + err.message);
                 return;
             }
             var returnData = {};
@@ -539,7 +526,7 @@ var updateSvrtreq = function updateSvrtreq(pTrackingId, pSendDate, pStateInd, pM
         },	                       
         function (err, result) {
             if (err) {
-                console.error(err.message);
+                console.error("updateSvrtreq: " + err.message);
                 return;
             }
         });        
