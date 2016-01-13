@@ -1,0 +1,1 @@
+get-service | foreach-object {if ($_.name.startsWith('TranscriptWorker')) { write-output ($_.name + ', status:'+$_.status); } }
