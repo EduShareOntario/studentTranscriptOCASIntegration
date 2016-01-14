@@ -13,11 +13,6 @@ ddpLogin.onSuccess(function (ddpConnection){
   Job.processJobs(config.settings.jobCollectionName, 'getTranscriptRequestDetailsFromOCAS', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 });
 
-function sendAcknowledgmentToOCAS(authToken, ocasRequestId, cb) {
-  // todo: Acknowledge to OCAS that we have received the transcript!!!
-  cb(null);
-}
-
 function processJob(job, cb) {
   var ocasRequestId = job.data.ocasRequestId
   if (!ocasRequestId) {
@@ -56,9 +51,14 @@ function processJob(job, cb) {
             cb();
             return;
           }
-          sendAcknowledgmentToOCAS(authToken, ocasRequestId, function(err) {
-            if (err) {
-              job.fail({task: "sendAcknowledgmentToOCAS", exception: err, data: transcriptRequestsJob});
+          // Ok, we have a TranscriptRequest saved, now it's time to tell OCAS so they don't send it again.
+          ocasLogin.sendAcknowledgmentToOCAS(authToken, ocasRequestId, function(err, response) {
+            if (response && response.statusCode == 400) {
+              // No point retrying this job because OCAS doesn't know about this request
+              job.retry({retries:0});
+            }
+            if (err || response.statusCode != 200) {
+              job.fail({task: "sendAcknowledgmentToOCAS", exception: err});
             } else {
               job.done();
             }
