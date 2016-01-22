@@ -194,13 +194,6 @@ var processTranscript = function(transcriptRequest, cb) {
     }
 };
 
-/*
-var institution = function (pId, pIndex) {
-    Fiber(function () {
-        var instName = getInstitution(pId, pIndex).wait();
-    }).run();
-}
-*/
 
 
 /**
@@ -440,7 +433,7 @@ var writeAgency = function writeAgency(trackingId, person) {
             //todo need to handle transaction semantics
             orawrap.execute(
                 "insert into saturn.xml_agency (xml_agency_requesttrackingid,xml_agency_name,xml_agency_code, xml_agency_id, xml_agency_status,xml_agency_activity) values (:xml_agency_requesttrackingid,:xml_agency_name,:xml_agency_code, :xml_agency_id, :xml_agency_status,:xml_agency_activity)",
-                        [trackingId, '????', '????', person.AgencyAssignedID, '', new Date()],
+                        [trackingId, 'OCAS Application Number', 'MutuallyDefined', person.AgencyAssignedID, '', new Date()],
                         { autoCommit: true },
                         function (err, result) {
                     if (err) {
