@@ -34,13 +34,23 @@ CREATE OR REPLACE PACKAGE GEORGIAN.svptreq_pkg AS
 
  TYPE t_char_array IS TABLE OF VARCHAR2(100)  INDEX BY BINARY_INTEGER; 
  TYPE t_nmbr_array IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
-  
-
+ 
+ 
+ 
+FUNCTION calc_term_code 
+(
+	pInputTerm	IN stvterm.stvterm_code%TYPE	
+)
+RETURN VARCHAR2;
+ 
+ PROCEDURE process_transcript_requests;
+ 
  PROCEDURE process_requests
  (p_svrtreq_bgn02                 IN  VARCHAR2,
   p_130_147_flg                   IN  VARCHAR2,
   p_reason_code                   IN  VARCHAR2,
   p_svptreq_job_no                IN  NUMBER);
+  
 
  PROCEDURE get_stvsbgi_desc
  (p_stvsbgi_fice_desc             IN  OUT VARCHAR2);
@@ -336,17 +346,16 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
     FROM svrtreq
    WHERE svrtreq_state_ind  != 'X'
      AND svrtreq_completion_ind NOT IN ('130','147')
-     AND svrtreq_reason_cde IS NULL
-     FOR UPDATE OF svrtreq_state_ind;
+     AND svrtreq_reason_cde IS NULL;
+   /*  FOR UPDATE OF svrtreq_state_ind;*/
 
  BEGIN
-	log_details('process_requests',0,'','what are the values',p_svrtreq_bgn02|| ' ' || p_130_147_flg || ' ' || p_reason_code || ' ' ||  p_svptreq_job_no);
 
   v_rcrd_err_flg := 0;
   v_rpt_page_no  := 0;
   v_rpt_line_cnt := 99;
   v_treq_purpose := NULL;
-
+/*
   OPEN c1;
   LOOP
 
@@ -806,8 +815,76 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
   END IF;
 
   COMMIT;
+*/
 
-  log_details('process_requests cursor c2',0,'','what are the values',p_svrtreq_bgn02|| ' ' || p_130_147_flg || ' ' || p_reason_code || ' ' ||  p_svptreq_job_no);
+	process_transcript_requests;
+
+
+EXCEPTION
+	WHEN OTHERS THEN
+        Log_Error('process_requests',' ',SQLERRM);
+ END process_requests;
+ 
+ 
+/*----------------------------------------------------------*/
+/* process records in the "svrtreq" table.                  */
+/*----------------------------------------------------------*/ 
+PROCEDURE process_transcript_requests
+IS
+
+v_rcrd_err_flg                   NUMBER;
+v_rpt_message                    VARCHAR2(50);
+v_rpt_detl_line                  VARCHAR2(132);
+v_rpt_page_no                    NUMBER;
+v_rpt_line_cnt                   NUMBER;
+
+v_svrtreq_bgn02                  svrtreq.svrtreq_bgn02%TYPE;
+v_svrtreq_trans_date             svrtreq.svrtreq_trans_date%TYPE;
+v_svrtreq_purpose_cde            svrtreq.svrtreq_purpose_cde%TYPE;
+v_svrtreq_action_cde             svrtreq.svrtreq_action_cde%TYPE;
+v_svrtreq_birth_date             svrtreq.svrtreq_birth_date%TYPE;
+v_svrtreq_gender                 svrtreq.svrtreq_gender%TYPE;
+v_svrtreq_sin                    svrtreq.svrtreq_sin%TYPE;
+v_svrtreq_surname                svrtreq.svrtreq_surname%TYPE;
+v_svrtreq_firstname              svrtreq.svrtreq_firstname%TYPE;
+v_svrtreq_send_date              svrtreq.svrtreq_send_date%TYPE;
+v_svrtreq_state_ind              svrtreq.svrtreq_state_ind%TYPE;
+v_svrtreq_match_ind              svrtreq.svrtreq_match_ind%TYPE;
+v_svrtreq_hold_ind               svrtreq.svrtreq_hold_ind%TYPE;
+v_svrtreq_date_ind               svrtreq.svrtreq_date_ind%TYPE;
+v_svrtreq_completion_ind         svrtreq.svrtreq_completion_ind%TYPE;
+v_svrtreq_id                     svrtreq.svrtreq_id%TYPE;
+
+v_spriden_pidm                   spriden.spriden_id%TYPE;
+v_spbpers_dead_ind               spbpers.spbpers_dead_ind%TYPE;
+v_svrtreq_reason_cde             svrtreq.svrtreq_reason_cde%TYPE;
+v_shttran_seq_no                 shttran.shttran_seq_no%TYPE;
+
+
+CURSOR c2 IS
+  SELECT svrtreq_bgn02,
+         svrtreq_trans_date,
+         svrtreq_purpose_cde,
+         svrtreq_action_cde,
+         svrtreq_birth_date,
+         svrtreq_gender,
+         svrtreq_sin,
+         svrtreq_surname,
+         svrtreq_firstname,
+         svrtreq_send_date,
+         svrtreq_state_ind,
+         svrtreq_match_ind,
+         svrtreq_hold_ind,
+         svrtreq_date_ind,
+         svrtreq_completion_ind,
+         svrtreq_id
+    FROM svrtreq
+	WHERE svrtreq_state_ind  != 'X'
+	AND svrtreq_completion_ind NOT IN ('130','147')
+	AND svrtreq_reason_cde IS NULL;
+	/*FOR UPDATE OF svrtreq_state_ind;*/
+	
+BEGIN
 
   OPEN c2;
   LOOP
@@ -831,7 +908,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
          v_svrtreq_id;
 
    EXIT WHEN c2%NOTFOUND;
-	log_details('process_c2 cursor',0,'','what are the values',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);
+   log_details('process_c2 cursor',0,'','what are the values',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);
 
    v_rcrd_err_flg       := 0;
    v_spriden_pidm       := NULL;
@@ -840,8 +917,9 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
 
    IF  v_svrtreq_state_ind IN ('P','M')
    THEN
-       delete_svrtdup_record
-       (v_svrtreq_bgn02);
+		log_details('process_c2 cursor',0,'','calling delete_svrtdup',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);
+		delete_svrtdup_record(v_svrtreq_bgn02);
+       
 
        IF  v_svrtreq_id IS NULL
        THEN
@@ -886,6 +964,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
 
    IF  v_svrtreq_state_ind = 'H'
    THEN
+   		log_details('process_c2 cursor',0,'','record is in hold',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);
        IF  NVL(v_svrtreq_hold_ind,'~') = 'O'
        THEN
            v_svrtreq_state_ind := 'D';
@@ -906,6 +985,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
 
    IF  v_svrtreq_state_ind = 'D'
    THEN
+       log_details('process_c2 cursor',0,'','determine send date',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);
        determine_send_date
        (v_svrtreq_action_cde,
         v_svrtreq_bgn02,
@@ -931,7 +1011,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
                (v_svrtreq_id,
                 v_spriden_pidm);
            END IF;
-
+  		   log_details('process_c2 cursor',0,'','insert_shttran',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);
            insert_shttran_record
            (v_spriden_pidm,
             v_svrtreq_id,
@@ -939,7 +1019,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
             v_shttran_seq_no);
            v_svrtreq_completion_ind := '130';
        END IF;
-
+ 	   log_details('process_c2 cursor',0,'','update_svrtreq',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id);         
        update_svrtreq_record
        (v_svrtreq_bgn02,
         v_svrtreq_send_date,
@@ -952,6 +1032,7 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
         v_shttran_seq_no,
         v_svrtreq_reason_cde);
    ELSE
+  	   log_details('process_c2 cursor',0,'','we have a message',v_svrtreq_bgn02 || ' ' || v_svrtreq_purpose_cde || ' ' || v_svrtreq_action_cde || ' ' ||  v_svrtreq_surname || ' ' || v_svrtreq_state_ind || ' ' || v_svrtreq_match_ind || ' ' || v_svrtreq_hold_ind || ' ' || v_svrtreq_date_ind || ' ' || v_svrtreq_completion_ind || ' ' || v_svrtreq_id || ' ' || v_rpt_message);           
        v_rpt_detl_line
         := SUBSTR(RPAD(SUBSTR(v_svrtreq_bgn02,1,15),16,' ')||
            RPAD(TO_CHAR(v_svrtreq_trans_date,'yyyymmdd'),12,' ')||
@@ -982,8 +1063,10 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
   CLOSE c2;
 
   COMMIT;
-
- END process_requests;
+EXCEPTION
+	WHEN OTHERS THEN
+		GEORGIAN.LOGERRORANDNOTIFY('process_transcript_requests', 'THIS IS THE DATA', SQLERRM, 'Y', 'Mike.Westbrooke@GeorgianCollege.ca');       	  
+END process_transcript_requests;
 
 /*----------------------------------------------------------------------------*/
 /* Get the institution description from the "STVSBGI" table.                  */
@@ -1131,10 +1214,11 @@ CREATE OR REPLACE PACKAGE BODY GEORGIAN.svptreq_pkg AS
  (p_svrtreq_bgn02                 IN  VARCHAR2) IS
 
  BEGIN
-
-  DELETE FROM svrtreq
-   WHERE svrtreq_bgn02 = p_svrtreq_bgn02;
-
+	log_details('delete_svrtreq_record',0,'','deleting from svrtreq',p_svrtreq_bgn02);
+	DELETE FROM svrtreq WHERE svrtreq_bgn02 = p_svrtreq_bgn02;   
+ EXCEPTION
+	WHEN OTHERS THEN
+        Log_Error('delete_svrtreq_record',' ',SQLERRM);
  END delete_svrtreq_record;
 
 /*----------------------------------------------------------------------------*/
@@ -1367,8 +1451,6 @@ IS
      AND b.spbpers_sex               = p_svrtreq_sex;
 BEGIN
 
-  log_details('matchstudentinfo',0,'','what are the values',p_svrtreq_birth_date || ' ' || p_svrtreq_sex || ' ' || p_studentId || ' ' || p_svrtreq_last_name || ' ' || p_svrtreq_first_name );
-
 	p_svrtreq_state_ind  := 'M';
 	p_svrtreq_match_ind  := 'N';
 	p_spriden_pidm       :=  NULL;
@@ -1411,7 +1493,6 @@ BEGIN
       CLOSE c7;
   END IF;
 
-    Log_Details('matchstudentinfo',t_spriden_pidm.COUNT,'','what is the pidm count','check pidm value');
 
 	IF  t_spriden_pidm.COUNT = 1 THEN
 		p_svrtreq_state_ind    := 'H';
@@ -1431,7 +1512,6 @@ BEGIN
 				t_spriden_idx     := t_spriden_idx + 1;
 			END LOOP;
 	END IF;	
-	log_Details('matchstudentinfo',t_spriden_pidm.COUNT,'','end of function',p_svrtreq_state_ind || ' ' || p_svrtreq_match_ind);
 EXCEPTION
     WHEN OTHERS THEN
         Log_Error('matchStudentInfo',' ',p_studentId || ' ' || p_svrtreq_last_name || ' ' || SQLERRM); 
@@ -1629,7 +1709,8 @@ END matchStudentInfo;
       THEN
           p_error_message := 'TNTE - TERM= record not found';
       ELSE
-          IF  NVL(SUBSTR(p_svrtreq_bgn02,1,1),'~') = 'C'
+		v_gtvsdax_term_code := calc_term_code(v_svrtnte_data_value);
+/*          IF  NVL(SUBSTR(p_svrtreq_bgn02,1,1),'~') = 'C'
           THEN
               get_gtvsdax_translation_code
               (v_svrtnte_data_value,
@@ -1641,7 +1722,7 @@ END matchStudentInfo;
               'TERMU',
                v_gtvsdax_term_code);
           END IF;
-
+*/
           IF  v_gtvsdax_term_code IS NULL
           THEN
               p_svrtreq_date_ind := 'IT';
@@ -1709,17 +1790,18 @@ END matchStudentInfo;
   p_svrtnte_note := NULL;
 
   OPEN c12;
-  FETCH c12
-   INTO p_svrtnte_note;
+  FETCH c12 INTO p_svrtnte_note;
   CLOSE c12;
-
+EXCEPTION
+	WHEN OTHERS THEN
+        Log_Error('get_svrtnte_note',' ',p_svrtnte_bgn02 || ' ' || p_record_type || ' ' || SQLERRM);
  END get_svrtnte_note;
 
 /*----------------------------------------------------------------------------*/
 /* Get the term end date from the "STVTERM" table.                            */
 /*----------------------------------------------------------------------------*/
 
- PROCEDURE get_stvterm_end_date
+PROCEDURE get_stvterm_end_date
  (p_stvterm_code                  IN  VARCHAR2,
   p_stvterm_end_date              OUT DATE) IS
 
@@ -1730,13 +1812,12 @@ END matchStudentInfo;
 
  BEGIN
 
-  p_stvterm_end_date := NULL;
+ p_stvterm_end_date := NULL;
 
-  OPEN c13;
-  FETCH c13
-   INTO p_stvterm_end_date;
-  CLOSE c13;
-
+ OPEN c13;
+ FETCH c13 INTO p_stvterm_end_date;
+ CLOSE c13;
+ log_details('svptreq_pkg:get_stvterm_end_date',0,'','what are the values',p_stvterm_code|| ' ' || p_stvterm_end_date);
  END get_stvterm_end_date;
 
 /*----------------------------------------------------------------------------*/
@@ -2185,6 +2266,7 @@ END write_transcript_record;
 
  v_svrtreq_completion_ind         svrtreq.svrtreq_completion_ind%TYPE;
 
+ /*todo won't need this cursor when we go live */
  CURSOR c18 IS
   SELECT gwrfile_line,
          gwrfile_data
@@ -2210,11 +2292,11 @@ END write_transcript_record;
     FROM svrtreq
    WHERE svrtreq_state_ind  != 'X'
      AND svrtreq_completion_ind NOT IN ('130','147')
-     AND svrtreq_reason_cde IS NOT NULL
-     FOR UPDATE OF svrtreq_state_ind;
+     AND svrtreq_reason_cde IS NOT NULL;
+    /* FOR UPDATE OF svrtreq_state_ind; */
 
  BEGIN
-
+  log_details('svptreq_pkg:process_refusals',0,'','starting',v_svrtreq_bgn02);
   v_svptreq_seq_no := 0;
 
   OPEN c18;
@@ -2252,7 +2334,7 @@ END write_transcript_record;
          v_svrtreq_reason_cde;
 
    EXIT WHEN c19%NOTFOUND;
-
+   log_details('svptreq_pkg:process_refusals',0,'','c19',v_svrtreq_bgn02);
    IF  SUBSTR(v_svrtreq_bgn02,1,1) = 'C'
    THEN
        v_ocas_ouac_code := 'OCAS';
@@ -2403,7 +2485,9 @@ END write_transcript_record;
   CLOSE c19;
 
   COMMIT;
-
+EXCEPTION
+	WHEN OTHERS THEN
+		GEORGIAN.LOGERRORANDNOTIFY('svptreq_pkg:process_refusals', '', SQLERRM, 'Error Processing Refusal','Y', 'Mike.Westbrooke@GeorgianCollege.ca');     	
  END process_refusals;
 
 /*----------------------------------------------------------------------------*/
@@ -2415,21 +2499,23 @@ END write_transcript_record;
   p_svptreq_seq_no                IN  OUT NUMBER,
   p_svptreq_147_data              IN  VARCHAR2) IS
 
- BEGIN
+BEGIN
 
-  p_svptreq_seq_no := p_svptreq_seq_no + 1;
-
-  INSERT INTO svptreq_tab
-       ( svptreq_id,
-         svptreq_date,
-         svptreq_seq_no,
-         svptreq_147_data )
-  VALUES
-       ( p_svptreq_id,
-         TRUNC(SYSDATE),
-         p_svptreq_seq_no,
-         p_svptreq_147_data );
-
+	p_svptreq_seq_no := p_svptreq_seq_no + 1;
+	log_details('svptreq_pkg:insert_svptreq_record',0,'','what are the values',p_svptreq_id || ' ' || p_svptreq_147_data);
+	INSERT INTO svptreq_tab
+	   ( svptreq_id,
+		 svptreq_date,
+		 svptreq_seq_no,
+		 svptreq_147_data )
+	VALUES
+	   ( p_svptreq_id,
+		 TRUNC(SYSDATE),
+		 p_svptreq_seq_no,
+		 p_svptreq_147_data );
+ EXCEPTION
+	WHEN OTHERS THEN
+		GEORGIAN.LOGERRORANDNOTIFY('svptreq_pkg:insert_svptreq_record', p_svptreq_id, SQLERRM, 'Error Processing Refusal','Y', 'Mike.Westbrooke@GeorgianCollege.ca');    		
  END insert_svptreq_record;
 
 /*----------------------------------------------------------------------------*/
@@ -2569,8 +2655,47 @@ EXCEPTION
          svrtreq_reason_cde     = p_svrtreq_reason_cde,
          svrtreq_activity_date  = TRUNC(SYSDATE)
    WHERE svrtreq_bgn02          = p_svrtreq_bgn02;
-
+  EXCEPTION
+    WHEN OTHERS THEN
+        Log_Error('update_svrtreq_record',' ',p_svrtreq_bgn02 || ' ' || SQLERRM); 
  END update_svrtreq_record;
+ 
+/*-------------------------------------------------------*/
+/* Calc the term code.                                   */
+/*-------------------------------------------------------*/
+FUNCTION calc_term_code
+(
+	pInputTerm	IN stvterm.stvterm_code%TYPE
+)
+RETURN VARCHAR2
+IS
+
+vTrimmedTerm    VARCHAR2(5) := null;
+vStartPeriod    VARCHAR2(1) := null;
+vYear           NUMBER;
+vTermCode		VARCHAR2(6) := pInputTerm;
+
+BEGIN
+	vTrimmedTerm  := REPLACE(pInputTerm,' ','');
+    vStartPeriod  := SUBSTR(vTrimmedTerm,1,1);
+    vYear := TO_NUMBER(SUBSTR(vTrimmedTerm,2));
+    vYear := vYear + 1;
+
+	CASE vStartPeriod
+		WHEN 'F' THEN vTermCode := CONCAT(TO_CHAR(vYear),'10');
+		WHEN 'W' THEN vTermCode := CONCAT(TO_CHAR(vYear),'20');
+		WHEN 'A' THEN vTermCode := CONCAT(TO_CHAR(vYear),'30');
+     
+		ELSE vTermCode := pInputTerm;  -- set it to the input param value
+	END CASE;	
+	 log_details('svptreq_pkg:calc_term_code',0,'','what are the values',pInputTerm|| ' ' || vTermCode);
+
+	RETURN vTermCode;
+EXCEPTION
+	WHEN OTHERS THEN
+		GEORGIAN.LOGERRORANDNOTIFY('svptreq_pkg:calc_term_code', pInputTerm, SQLERRM, 'Error Processing Transcript','Y', 'Mike.Westbrooke@GeorgianCollege.ca');     	
+END calc_term_code;
+ 
 
 END svptreq_pkg;
 /

@@ -47,7 +47,7 @@ function processJob(job, cb) {
         var transcriptRequestDetails = JSON.parse(body);
         // Create the job
         var jobData = {requestId: transcriptRequestDetails.RequestID, requestDetails: transcriptRequestDetails.PESCXml};
-        var transcriptRequestsJob = new Job(config.settings.jobCollectionName, 'transcriptRequests', jobData);
+        var transcriptRequestsJob = new Job(config.settings.jobCollectionName, 'transcriptRequest', jobData);
         transcriptRequestsJob.priority('normal').retry({retries: Job.forever, wait: 60 * 1000, backoff: 'exponential'}); // 60 second exponential backoff
         // Commit it to the server
         transcriptRequestsJob.save(function (err, result) {
