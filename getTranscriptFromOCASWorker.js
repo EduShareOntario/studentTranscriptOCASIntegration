@@ -16,11 +16,6 @@ ddpLogin.onSuccess(function (ddpConnection){
   Job.processJobs(config.settings.jobCollectionName, 'getTranscriptDetailsFromOCAS', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
 });
 
-function sendAcknowledgmentToOCAS(authToken, ocasRequestId, cb) {
-  // todo: Acknowledge to OCAS that we have received the transcript!!!
-  cb(null);
-}
-
 function processJob(job, cb) {
   var ocasRequestId = job.data.ocasRequestId
   if (!ocasRequestId) {
@@ -73,15 +68,18 @@ function processJob(job, cb) {
           saveTranscriptJob.priority('normal').retry({retries: Job.forever, wait: 30 * 1000, backoff: 'exponential'}); // 30 second exponential backoff
           // Commit it to the server
           saveTranscriptJob.save(function (err, jobId) {
-            //todo: real exception handling.
             if (err) {
               job.fail({task: "createJob", exception: err, data: saveTranscriptJob});
               cb();
               return;
             }
-            // Ok, we have a Transcript saved, now it's time to tell OCAS so they don't send it again and also schedule downstream jobs.
-            sendAcknowledgmentToOCAS(authToken, ocasRequestId, function(err) {
-              if (err) {
+            // Ok, we have a Transcript saved, now it's time to tell OCAS so they don't send it again.
+            ocasLogin.sendAcknowledgmentToOCAS(authToken, ocasRequestId, function(err, response) {
+              if (response && response.statusCode == 400) {
+                // No point retrying this job because OCAS doesn't know about this request
+                job.retry({retries:0});
+              }
+              if (err || response.statusCode != 200) {
                 job.fail({task: "sendAcknowledgmentToOCAS", exception: err});
               } else {
                 job.done();
