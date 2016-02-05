@@ -75,6 +75,7 @@ var processTranscript = function(transcriptRequest, cb) {
     var secondMiddleName = null;
     var formerSurName = null;
     var sendDate = null;
+    var ocasNumber = null;
 
     try {
         var matchInfo = matchStudentInfo(transcriptRequest).wait();
@@ -97,6 +98,21 @@ var processTranscript = function(transcriptRequest, cb) {
             if (transcriptRequest.Request.RequestedStudent.Person.AlternateName.MiddleName != undefined) {
                 secondMiddleName = transcriptRequest.Request.RequestedStudent.Person.AlternateName.MiddleName;
             }
+        }
+        
+        if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier.constructor === Array) {
+            var numEntries = transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier.length - 1;           
+            for (var index = 0; index <= numEntries; ++index) {
+                if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyName != undefined) {                   
+                    if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyName.toUpperCase() == "OCAS APPLICATION NUMBER") {
+                        ocasNumber = transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyAssignedID;
+                    }                 
+                }
+            }
+        } 
+        
+        if (ocasNumber == undefined) {
+            ocasNumber = transcriptRequest.RequestedStudent.Person.AgencyAssignedID; 
         }
 
         var actionCode = "";
@@ -153,7 +169,7 @@ var processTranscript = function(transcriptRequest, cb) {
         var sourceDate = transcriptRequest.Request.RequestedStudent.Person.Birth.BirthDate.replace(/-/g, "/") + " EST";
 
         var birthDate = new Date(Date.parse(sourceDate));
-
+        
         writeRequest(transcriptRequest,
             studentId,
             stateIndicator,
@@ -166,7 +182,8 @@ var processTranscript = function(transcriptRequest, cb) {
             sendDate,
             firstMiddleName,
             secondMiddleName,
-            formerSurName
+            formerSurName,
+            ocasNumber
         ).wait();
 
         writeAgency(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.RequestedStudent.Person).wait();
@@ -372,9 +389,10 @@ var getTermCode = function getTermCode(pTermCode) {
  * @param {} firstMiddleName 
  * @param {} secondMiddleName 
  * @param {} formerSurName 
+ * @param {} ocasNumber
  * @returns {} 
  */
-var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndicator, matchIndicator, holdIndicator, dateIndicator, birthDate, actionCode, completionInd, sendDate, firstMiddleName, secondMiddleName, formerSurName) {
+var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndicator, matchIndicator, holdIndicator, dateIndicator, birthDate, actionCode, completionInd, sendDate, firstMiddleName, secondMiddleName, formerSurName, ocasNumber) {
     var future = new Future();
     var genderCode = transcriptRequest.Request.RequestedStudent.Person.Gender.GenderCode.substring(0, 1);
     
@@ -384,10 +402,9 @@ var writeRequest = function writeRequest(transcriptRequest, studentId, stateIndi
         exitDate = new Date(Date.parse(tranExitDate));
     }
        
-    
     orawrap.execute(
         "insert into saturn.svrtreq (svrtreq_bgn02,svrtreq_id,svrtreq_trans_date, svrtreq_state_ind, svrtreq_match_ind, svrtreq_hold_ind,svrtreq_date_ind,svrtreq_purpose_cde, svrtreq_action_cde,  svrtreq_completion_ind, svrtreq_data_origin, svrtreq_user_id,svrtreq_activity_date,svrtreq_birth_date,svrtreq_gender,svrtreq_exit_date,svrtreq_surname,svrtreq_firstname,svrtreq_prefix,svrtreq_ocas_appnum,svrtreq_student_no_1,svrtreq_send_date,svrtreq_firstmidname, svrtreq_secondmidname, svrtreq_formersurname) values (:svrtreq_bgn02,:svrtreq_id,:svrtreq_trans_date,:svrtreq_state_ind, :svrtreq_match_ind, :svrtreq_hold_ind, :svrtreq_date_ind, :svrtreq_purpose_cde, :svrtreq_action_cde, :svrtreq_completion_ind, :svrtreq_data_origin, :svrtreq_user_id,:svrtreq_activity_date, :svrtreq_birth_date, :svrtreq_gender,:svrtreq_exit_date,:svrtreq_surname,:svrtreq_firstname,:svrtreq_prefix, :svrtreq_ocas_appnum,:svrtreq_student_no_1,:svrtreq_send_date,:svrtreq_firstmidname, :svrtreq_secondmidname, :svrtreq_formersurname)",
-                [transcriptRequest.TransmissionData.RequestTrackingID, studentId, new Date(Date.parse(transcriptRequest.Request.CreatedDateTime)), stateIndicator, matchIndicator, holdIndicator, dateIndicator, '13', actionCode, completionInd, 'deletexml', 'mwestbrooke', new Date(), birthDate, genderCode, exitDate, transcriptRequest.Request.RequestedStudent.Person.Name.LastName, transcriptRequest.Request.RequestedStudent.Person.Name.FirstName, transcriptRequest.Request.RequestedStudent.Person.Name.NamePrefix, transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID, transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID, sendDate, firstMiddleName, secondMiddleName, formerSurName],
+                [transcriptRequest.TransmissionData.RequestTrackingID, studentId, new Date(Date.parse(transcriptRequest.Request.CreatedDateTime)), stateIndicator, matchIndicator, holdIndicator, dateIndicator, '13', actionCode, completionInd, 'deletexml', 'mwestbrooke', new Date(), birthDate, genderCode, exitDate, transcriptRequest.Request.RequestedStudent.Person.Name.LastName, transcriptRequest.Request.RequestedStudent.Person.Name.FirstName, transcriptRequest.Request.RequestedStudent.Person.Name.NamePrefix, ocasNumber, transcriptRequest.Request.RequestedStudent.Person.SchoolAssignedPersonID, sendDate, firstMiddleName, secondMiddleName, formerSurName],
 		        { autoCommit: true },   
                 function (err, result) {
             if (err) {
@@ -477,6 +494,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
                 
                 
                 //todo need to handle transaction semantics
+                console.log('writing note: ' + instName);
                 orawrap.execute(
                     "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
                             [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
@@ -505,7 +523,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
             var instName = getInstitution(recipientCode).wait();
             noteMessage = "inst=" + recipientCode + "/" + instName;
             
-            
+            console.log('writing note: ' + instName);
             //todo need to handle transaction semantics
             orawrap.execute(
                 "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
@@ -557,8 +575,7 @@ var writeFutureTermNote = function writeFutureTermNote(trackingId,termCode) {
  * @returns {} 
  */
 var writeTranscript = function writeTranscript(pPidm, pStudentId, pTrackingId) {
-    var future = new Future();
-    
+    var future = new Future(); 
     orawrap.execute(
         "BEGIN georgian.svptreq_pkg.write_transcript_record(:p_spriden_pidm, :p_spriden_id,:p_svrtreq_bgn02,:p_shttran_seq_no); END;",
             {
@@ -567,12 +584,13 @@ var writeTranscript = function writeTranscript(pPidm, pStudentId, pTrackingId) {
             p_spriden_id: pStudentId,
             p_svrtreq_bgn02: pTrackingId,
             p_shttran_seq_no: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }
-        },	 
+        },
+        { autoCommit: true },	 
            function (err, result) {
             if (err) {
                 console.error("writeTranscript: " + err.message);
                 future.throw(new Error(err.message));   
-            }
+            }         
             var returnData = {};
             returnData.seqNo = result.outBinds.p_shttran_seq_no;
             future.return(returnData);
@@ -605,7 +623,8 @@ var updateSvrtreq = function updateSvrtreq(pTrackingId, pSendDate, pStateInd, pM
             p_svrtreq_id: pStudentId,
             p_svrtreq_seq_no: pSeqNo,
             p_svrtreq_reason_cde: pReasonCode
-        },	                       
+        },	
+        { autoCommit: true },	                       
         function (err, result) {
             if (err) {
                 console.error("updateSvrtreq: " + err.message);
