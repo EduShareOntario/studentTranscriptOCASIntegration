@@ -493,8 +493,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
                 noteMessage = "inst=" + recipientCode + "/" + instName;
                 
                 
-                //todo need to handle transaction semantics
-                console.log('writing note: ' + instName);
+                //todo need to handle transaction semantics             
                 orawrap.execute(
                     "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
                             [trackingId, noteMessage, 'deletexml', 'mwestbrooke', new Date()],
@@ -522,8 +521,7 @@ var writeRequestNotes = function writeRequestNotes(trackingId, recipient) {
             }
             var instName = getInstitution(recipientCode).wait();
             noteMessage = "inst=" + recipientCode + "/" + instName;
-            
-            console.log('writing note: ' + instName);
+                        
             //todo need to handle transaction semantics
             orawrap.execute(
                 "insert into saturn.svrtnte (svrtnte_bgn02,svrtnte_note,svrtnte_data_origin, svrtnte_user_id, svrtnte_activity_date) values (:svrtnte_bgn02,:svrtnte_note,:svrtnte_data_origin, :svrtnte_user_id, :svrtnte_activity_date)",
