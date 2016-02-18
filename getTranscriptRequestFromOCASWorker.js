@@ -48,22 +48,10 @@ function processJob(job, cb) {
         transcriptRequestsJob.save(function (err, result) {
           if (err) {
             job.fail({task: "createJob", exception: err, data: transcriptRequestsJob});
-            cb();
-            return;
+          } else {
+            job.done({result:result});
           }
-          // Ok, we have a TranscriptRequest saved, now it's time to tell OCAS so they don't send it again.
-          ocasLogin.sendAcknowledgmentToOCAS(authToken, ocasRequestId, function(err, response) {
-            if (response && response.statusCode == 400) {
-              // No point retrying this job because OCAS doesn't know about this request
-              job.retry({retries:0});
-            }
-            if (err || response.statusCode != 200) {
-              job.fail({task: "sendAcknowledgmentToOCAS", exception: err});
-            } else {
-              job.done();
-            }
-            cb();
-          });
+          cb();
         });
       });
     }

@@ -9,6 +9,7 @@ module.exports = {
     requestsNoResponseUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/no_response',
     transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     sendTranscriptUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
+    transcriptAcknowledgmentUrl: "https://etms.uat.ocas.ca/api/transcripts/:requestId/acknowledgment",
     ddpHost : 'jobcollection.georgiantest.com',
     ddpPort : '80',
     ddpUser : 'bob',

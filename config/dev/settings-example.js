@@ -9,7 +9,7 @@
     transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     sendTranscriptUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     transcriptToHtmlURL: "https://xxxxxx.com/transformdoc",
-    transcriptAcknowledgmentUrl: "transcripts/:requestId/acknowledgment",
+    transcriptAcknowledgmentUrl: "https://etms.uat.ocas.ca/api/transcripts/:requestId/acknowledgment",
     ddpUrl: 'ws://xxxxx.com/path/websocket',
     ddpUser : 'xxxxxxxxxxxxxxxxx',
     ddpPassword : 'xxxxxxxxxxxxx',

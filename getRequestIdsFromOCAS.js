@@ -72,9 +72,9 @@ function start(processJobConfig, createJobConfig) {
               }
             });
             if (errors.length > 0) {
-              job.fail({errors: errors});
+              job.fail({errors: errors, redundantRequestIds: redundantIds});
             } else {
-              job.done({savedJobs: savedJobIds});
+              job.done({savedJobs: savedJobIds, redundantRequestIds: redundantIds});
             }
             cb();
           }).detach();

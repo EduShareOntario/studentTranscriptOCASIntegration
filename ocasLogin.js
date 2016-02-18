@@ -16,11 +16,12 @@ var ocas = {
     });
   },
   makeOcasUrl : function (urlTemplate, ocasRequestId) {
-    return urlTemplate + ocasRequestId;
+    return urlTemplate.replace(":requestId",ocasRequestId);
   },
   sendAcknowledgmentToOCAS : function (authToken, ocasRequestId, cb) {
     var httpOptions = {
       url: ocas.makeOcasUrl(config.settings.transcriptAcknowledgmentUrl, ocasRequestId),
+      method: 'POST',
       headers: {
         'Authorization': authToken
       }
