@@ -80,7 +80,20 @@ function processJob(job, cb) {
                 job.retry({retries:0});
               }
               if (err || response.statusCode != 200) {
-                job.fail({task: "sendAcknowledgmentToOCAS", exception: err});
+                failureDetail = {
+                  task: "sendAcknowledgmentToOCAS"
+                  , exception: err
+                  , response: {
+                    headers: response.headers
+                    , body: response.body
+                    , statusCode: response.statusCode
+                  }
+                  , request: {
+                    href: response.request.href
+                    , method: response.request.method
+                  }
+                }
+                job.fail(failureDetail);
               } else {
                 job.done();
               }
