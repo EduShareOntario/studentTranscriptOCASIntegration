@@ -10,6 +10,7 @@ module.exports = {
     transcriptRequestUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     sendTranscriptUrl : 'https://etms.uat.ocas.ca/api/transcriptrequests/',
     transcriptAcknowledgmentUrl: "https://etms.uat.ocas.ca/api/transcripts/:requestId/acknowledgment",
+    ocasAcknowledgmentDocumentProcessCode: "TEST",
     ddpHost : 'jobcollection.georgiantest.com',
     ddpPort : '80',
     ddpUser : 'bob',

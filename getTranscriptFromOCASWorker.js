@@ -10,23 +10,25 @@ var ocasLogin = require('./ocasLogin');
 console.log('Fetch the transcript from OCAS and create downstream jobs; updateTranscriptWithApplicant, saveTranscripts');
 
 var ddp
-ddpLogin.onSuccess(function (ddpConnection){
+ddpLogin.onSuccess(function (ddpConnection) {
   ddp = ddpConnection;
   Job.setDDP(ddpConnection);
-  Job.processJobs(config.settings.jobCollectionName, 'getTranscriptDetailsFromOCAS', {pollInterval:5000, workTimeout: 1*60*1000}, processJob);
+  Job.processJobs(config.settings.jobCollectionName, 'getTranscriptDetailsFromOCAS', {
+    pollInterval: 5000,
+    workTimeout: 1 * 60 * 1000
+  }, processJob);
 });
 
 function processJob(job, cb) {
   var ocasRequestId = job.data.ocasRequestId
   if (!ocasRequestId) {
     // No point retrying this job!
-    job.retry({retries:0});
-    job.fail({task:"validate job", exception:"Missing required ocasRequestId"});
+    job.fail({task: "validate job", exception: "Missing required ocasRequestId"}, {fatal: true});
     cb();
   }
-  ocasLogin.onLogin(function(err, authToken){
+  ocasLogin.onLogin(function (err, authToken) {
     if (err) {
-      job.fail({task:"ocasAcquireAuthToken", exception:err});
+      job.fail({task: "ocasAcquireAuthToken", exception: err});
       cb();
       return;
     }
@@ -37,63 +39,80 @@ function processJob(job, cb) {
       }
     };
     request(httpOptions, function (error, response, body) {
-      if (error || response.statusCode != 200) {
-        //todo: maybe we should interrogate the response and stop retrying if it's a problem with our request data; ocasRequestId !!
-        job.fail({task:"ocasGetTranscriptDetail", exception:error, responseStatus: response.statusCode, data: body});
+      var errorOccured = err || (response && response.statusCode != 200);
+      if (errorOccured) {
+        var failureDetail = {
+          task: "ocasGetTranscriptDetail"
+          , exception: err
+          , request: httpOptions
+        }
+        if (response) {
+          failureDetail.response = {
+            headers: response.headers
+            , body: response.body
+            , statusCode: response.statusCode
+          };
+          var failOptions = {};
+          if (response.statusCode >= 400 && response.statusCode < 500) {
+            // No point retrying this job because something is wrong with our request
+            failOptions.fatal = true;
+          }
+        }
+        job.fail(failureDetail, failOptions);
         cb();
         return;
       }
       var transcriptDetails = JSON.parse(body);
       // Create the Transcript
-      ddp.call("createTranscript", [{title:"In-bound Transcript", description:"getTranscriptFromOCAS job created me", pescCollegeTranscriptXML: transcriptDetails.PESCXml}], function(err,transcriptId) {
+      ddp.call("createTranscript", [{
+        title: "In-bound Transcript",
+        description: "getTranscriptFromOCAS job created me",
+        pescCollegeTranscriptXML: transcriptDetails.PESCXml
+      }], function (err, transcriptId) {
         if (err) {
-          // todo: What should we tell OCAS when we can't save a Transcript they've provided?
           // todo: Depends on why it can't save. Maybe it was a temporary system state and nothing wrong with the data provided by OCAS.
           job.fail({task: "createTranscript", exception: err, data: transcriptDetails});
           cb();
           return;
         }
+        // Create sendInboundTranscriptAcknowledgmentToOCAS job!
         var jobData = {requestId: transcriptDetails.RequestID, transcriptId: transcriptId};
-        var updateTranscriptWithApplicantJob = new Job(config.settings.jobCollectionName, 'updateTranscriptWithApplicant', jobData);
-        updateTranscriptWithApplicantJob.priority('normal').retry({retries: Job.forever, wait: 24*60*60*1000, backoff: 'constant'}); // try once a day.
+        var sendInboundTranscriptAcknowledgmentToOCAS = new Job(config.settings.jobCollectionName, 'sendInboundTranscriptAcknowledgmentToOCAS', jobData);
+        sendInboundTranscriptAcknowledgmentToOCAS.priority('normal').retry({
+          retries: Job.forever,
+          wait: 1 * 60 * 60 * 1000,
+          backoff: 'constant'
+        }); // try once a minute.
         // Commit it to the server
-        updateTranscriptWithApplicantJob.save(function (err, result) {
+        sendInboundTranscriptAcknowledgmentToOCAS.save(function (err, result) {
           if (err) {
-            job.fail({task: "createJob", exception: err, data: updateTranscriptWithApplicantJob});
+            job.fail({task: "createJob", exception: err, data: sendInboundTranscriptAcknowledgmentToOCAS});
             cb();
             return;
           }
-          var saveTranscriptJob = new Job(config.settings.jobCollectionName, 'saveTranscript', jobData);
-          saveTranscriptJob.depends([updateTranscriptWithApplicantJob]);
-          saveTranscriptJob.priority('normal').retry({retries: Job.forever, wait: 30 * 1000, backoff: 'exponential'}); // 30 second exponential backoff
+
+          // Create updateTranscriptWithApplicant job!
+          var jobData = {requestId: transcriptDetails.RequestID, transcriptId: transcriptId};
+          var updateTranscriptWithApplicantJob = new Job(config.settings.jobCollectionName, 'updateTranscriptWithApplicant', jobData);
+          updateTranscriptWithApplicantJob.priority('normal').retry({
+            retries: Job.forever,
+            wait: 24 * 60 * 60 * 1000,
+            backoff: 'constant'
+          }); // try once a day.
           // Commit it to the server
-          saveTranscriptJob.save(function (err, jobId) {
+          updateTranscriptWithApplicantJob.save(function (err, result) {
             if (err) {
-              job.fail({task: "createJob", exception: err, data: saveTranscriptJob});
+              job.fail({task: "createJob", exception: err, data: updateTranscriptWithApplicantJob});
               cb();
               return;
             }
-            // Ok, we have a Transcript saved, now it's time to tell OCAS so they don't send it again.
-            ocasLogin.sendAcknowledgmentToOCAS(authToken, ocasRequestId, function(err, response) {
-              if (response && response.statusCode == 400) {
-                // No point retrying this job because OCAS doesn't know about this request
-                job.retry({retries:0});
-              }
-              if (err || response.statusCode != 200) {
-                failureDetail = {
-                  task: "sendAcknowledgmentToOCAS"
-                  , exception: err
-                  , response: {
-                    headers: response.headers
-                    , body: response.body
-                    , statusCode: response.statusCode
-                  }
-                  , request: {
-                    href: response.request.href
-                    , method: response.request.method
-                  }
-                }
-                job.fail(failureDetail);
+            var saveTranscriptJob = new Job(config.settings.jobCollectionName, 'saveTranscript', jobData);
+            saveTranscriptJob.depends([updateTranscriptWithApplicantJob]);
+            saveTranscriptJob.priority('normal').retry({retries: Job.forever, wait: 30 * 1000, backoff: 'exponential'}); // 30 second exponential backoff
+            // Commit it to the server
+            saveTranscriptJob.save(function (err, jobId) {
+              if (err) {
+                job.fail({task: "createJob", exception: err, data: saveTranscriptJob});
               } else {
                 job.done();
               }
