@@ -14,5 +14,8 @@ BEGIN
 	DELETE FROM shreptd
 	WHERE LOWER(shreptd_data_origin) = 'update_xmldoc_status';
 	COMMIT;
+	
+	DELETE FROM xml_transcripts;
+	COMMIT;
     
 END ;
