@@ -37,8 +37,7 @@ function processJob(job, cb) {
     });        
     parser.parseString(job._doc.data.requestDetails, function (err, result) {
         if (err) {
-            job.retry({ retries: 0 });
-            job.fail({ task: "parse Transcript request", exception: err });
+            job.fail({ task: "parse Transcript request", exception: err }, {fatal: true});
             cb();
             return;
         }
