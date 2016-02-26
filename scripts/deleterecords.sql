@@ -15,7 +15,7 @@ BEGIN
 	WHERE LOWER(shreptd_data_origin) = 'update_xmldoc_status';
 	COMMIT;
 	
-	DELETE FROM xml_transcripts;
+	DELETE FROM georgian.xml_transcripts;
 	COMMIT;
     
 END ;

@@ -100,19 +100,25 @@ var processTranscript = function(transcriptRequest, cb) {
             }
         }
         
-        if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier.constructor === Array) {
-            var numEntries = transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier.length - 1;           
-            for (var index = 0; index <= numEntries; ++index) {
-                if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyName != undefined) {                   
-                    if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyName.toUpperCase() == "OCAS APPLICATION NUMBER") {
-                        ocasNumber = transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyAssignedID;
-                    }                 
+        //mdw feb 26/2016 OUAC requests don't have the agency identifier in the document
+        //as a result I have to check if it exists, otherwise the code was failing.
+        if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier != undefined) {
+            if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier.constructor === Array) {
+                var numEntries = transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier.length - 1;
+                for (var index = 0; index <= numEntries; ++index) {
+                    if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyName != undefined) {
+                        if (transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyName.toUpperCase() == "OCAS APPLICATION NUMBER") {
+                            ocasNumber = transcriptRequest.Request.RequestedStudent.Person.AgencyIdentifier[index].AgencyAssignedID;
+                        }
+                    }
                 }
             }
-        } 
-        
+        } else {
+            ocasNumber = transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID;
+        }
+                
         if (ocasNumber == undefined) {
-            ocasNumber = transcriptRequest.RequestedStudent.Person.AgencyAssignedID; 
+            ocasNumber = transcriptRequest.Request.RequestedStudent.Person.AgencyAssignedID; 
         }
 
         var actionCode = "";
@@ -157,6 +163,17 @@ var processTranscript = function(transcriptRequest, cb) {
         } else {
             stateIndicator = "M";
         }
+        
+        //mdw feb 26/2016 i moved this code up because the calculateSendDate function
+        //depends on a record with a term code in svrtne. If this isn't before the
+        //calculation it will never set the send date
+        //this is a temporary work-around - I will create another function that will
+        //pass in the date
+        //as a result I have to check if it exists, otherwise the code was failing.
+        
+        if (actionCode == "R3" || actionCode == "R4") {
+            writeFutureTermNote(transcriptRequest.TransmissionData.RequestTrackingID, holdUntilTerm).wait();
+        }
 
         //todo not sure if this code should execute conditionally 
         if (stateIndicator == "D") {
@@ -185,14 +202,16 @@ var processTranscript = function(transcriptRequest, cb) {
             formerSurName,
             ocasNumber
         ).wait();
-
-        writeAgency(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.RequestedStudent.Person).wait();
-
-        writeRequestNotes(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.Recipient).wait();
         
-        if (actionCode == "R3" || actionCode == "R4") {
+       console.log('write agency');
+        writeAgency(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.RequestedStudent.Person).wait();
+        
+        console.log('write request notes');
+       writeRequestNotes(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.Recipient).wait();
+        
+       /* if (actionCode == "R3" || actionCode == "R4") {
             writeFutureTermNote(transcriptRequest.TransmissionData.RequestTrackingID, holdUntilTerm).wait();           
-        }
+        }*/
 
         if (dateInfo != undefined) {
             if (dateInfo.message == null) {
@@ -200,14 +219,14 @@ var processTranscript = function(transcriptRequest, cb) {
                     var seqNo = writeTranscript(matchInfo.pidm, matchInfo.studentId, transcriptRequest.TransmissionData.RequestTrackingID).wait();
                     completionInd = "130";
                 }
-
+                console.log('calling updateSvrtreq');
                 //    todo need to get some of the parameters, reason code
                 updateSvrtreq(transcriptRequest.TransmissionData.RequestTrackingID, dateInfo.sendDate, dateInfo.stateInd, matchInfo.matchInd, holdIndicator, dateInfo.dateInd, completionInd, matchInfo.studentId, null, dateInfo.reasonCode).wait();
             }
-        }
+        } 
         cb();
     } catch (e) {
-        cb(e);
+        cb(e.message);
     }
 };
 
@@ -430,7 +449,9 @@ var writeAgency = function writeAgency(trackingId, person) {
     if (person.AgencyAssignedID === undefined) {
         if (person.AgencyIdentifier.constructor === Array) {
             var numEntries = person.AgencyIdentifier.length - 1;
+          
             for (var index = 0; index <= numEntries; ++index) {
+                console.log('writeAgency');
                 Fiber(function () {
                     orawrap.execute(
                         "insert into saturn.xml_agency (xml_agency_requesttrackingid,xml_agency_name,xml_agency_code, xml_agency_id, xml_agency_status,xml_agency_activity) values (:xml_agency_requesttrackingid,:xml_agency_name,:xml_agency_code, :xml_agency_id, :xml_agency_status,:xml_agency_activity)",
