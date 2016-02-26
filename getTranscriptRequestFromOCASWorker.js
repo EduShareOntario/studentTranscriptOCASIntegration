@@ -17,8 +17,7 @@ function processJob(job, cb) {
   var ocasRequestId = job.data.ocasRequestId
   if (!ocasRequestId) {
     // No point retrying this job!
-    job.retry({retries:0});
-    job.fail({task:"validate job", exception:"Missing required ocasRequestId"});
+    job.fail({task:"validate job", exception:"Missing required ocasRequestId"}, {fatal: true});
     cb();
   }
   ocasLogin.onLogin(function(err, authToken){

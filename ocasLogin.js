@@ -14,21 +14,6 @@ var ocas = {
       }
       cb(error, authToken);
     });
-  },
-  makeOcasUrl : function (urlTemplate, ocasRequestId) {
-    return urlTemplate.replace(":requestId",ocasRequestId);
-  },
-  sendAcknowledgmentToOCAS : function (authToken, ocasRequestId, cb) {
-    var httpOptions = {
-      url: ocas.makeOcasUrl(config.settings.transcriptAcknowledgmentUrl, ocasRequestId),
-      method: 'POST',
-      headers: {
-        'Authorization': authToken
-      }
-    };
-    request(httpOptions, function (error, response, body) {
-      cb(error, response);
-    });
   }
 };
 
