@@ -163,20 +163,13 @@ var processTranscript = function(transcriptRequest, cb) {
             stateIndicator = "M";
         }
         
-        //mdw feb 26/2016 i moved this code up because the calculateSendDate function
-        //depends on a record with a term code in svrtne. If this isn't before the
-        //calculation it will never set the send date
-        //this is a temporary work-around - I will create another function that will
-        //pass in the date
-        //as a result I have to check if it exists, otherwise the code was failing.
-        
-        if (actionCode == "R3" || actionCode == "R4") {
-            writeFutureTermNote(transcriptRequest.TransmissionData.RequestTrackingID, holdUntilTerm).wait();
-        }
+        //mdw feb 29/2016 added additional parameter to calculateSendDate (holdUntilTerm)
+        //It calls a function in svrtpreq which checks svrtnte for a record with TERM-.
+        //That record hasn't been written yet.       
 
         //todo not sure if this code should execute conditionally 
         if (stateIndicator == "D") {
-            var dateInfo = calculateSendDate(actionCode, transcriptRequest.TransmissionData.RequestTrackingID).wait();
+            var dateInfo = calculateSendDate(actionCode, holdUntilTerm,transcriptRequest.TransmissionData.RequestTrackingID).wait();
             sendDate = dateInfo.sendDate;
             stateIndicator = dateInfo.stateInd;
         }
@@ -208,9 +201,9 @@ var processTranscript = function(transcriptRequest, cb) {
         console.log('write request notes');
        writeRequestNotes(transcriptRequest.TransmissionData.RequestTrackingID, transcriptRequest.Request.Recipient).wait();
         
-       /* if (actionCode == "R3" || actionCode == "R4") {
+        if (actionCode == "R3" || actionCode == "R4") {
             writeFutureTermNote(transcriptRequest.TransmissionData.RequestTrackingID, holdUntilTerm).wait();           
-        }*/
+        }
 
         if (dateInfo != undefined) {
             if (dateInfo.message == null) {
@@ -277,17 +270,19 @@ var matchStudentInfo = function matchStudentInfo(transcriptRequest) {
 /**
  * 
  * @param {} actionCode 
+ * @param {} holdUntilTerm
  * @param {} trackingId 
  * @returns {} 
  */
-var calculateSendDate = function calculateSendDate(actionCode, trackingId) {
+var calculateSendDate = function calculateSendDate(actionCode, holdUntilTerm, trackingId) {
     var future = new Future();
     
-    orawrap.execute("BEGIN georgian.svptreq_pkg.determine_send_date(:p_svrtreq_action_cde, :p_svrtreq_bgn02,:p_svrtreq_send_date, :p_svrtreq_state_ind, :p_svrtreq_date_ind, :p_svrtreq_reason_cde,:p_error_message); END;",
+    orawrap.execute("BEGIN georgian.svptreq_pkg.determine_send_date(:p_svrtreq_action_cde, :p_svrtreq_bgn02,:pHoldUntilTerm, :p_svrtreq_send_date, :p_svrtreq_state_ind, :p_svrtreq_date_ind, :p_svrtreq_reason_cde,:p_error_message); END;",
     {
         // bind variables                   
         p_svrtreq_action_cde: actionCode,  
-        p_svrtreq_bgn02: trackingId,                  
+        p_svrtreq_bgn02: trackingId,    
+        pHoldUntilTerm: holdUntilTerm,             
         p_svrtreq_send_date: { dir: oracledb.BIND_OUT, type: oracledb.DATE },
         p_svrtreq_state_ind: { dir: oracledb.BIND_OUT, type: oracledb.STRING },
         p_svrtreq_date_ind: { dir: oracledb.BIND_OUT, type: oracledb.STRING },
