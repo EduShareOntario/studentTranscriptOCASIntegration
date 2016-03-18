@@ -1724,19 +1724,7 @@ END matchStudentInfo;
       ELSE
 		v_gtvsdax_term_code := calc_term_code(v_svrtnte_data_value);
 		log_details('svptreq_pkg:determine_send_date',0,'','after calling term',p_svrtreq_bgn02 || ' ' || v_gtvsdax_term_code);
-/*          IF  NVL(SUBSTR(p_svrtreq_bgn02,1,1),'~') = 'C'
-          THEN
-              get_gtvsdax_translation_code
-              (v_svrtnte_data_value,
-              'TERM',
-               v_gtvsdax_term_code);
-          ELSE
-              get_gtvsdax_translation_code
-              (v_svrtnte_data_value,
-              'TERMU',
-               v_gtvsdax_term_code);
-          END IF;
-*/
+
           IF  v_gtvsdax_term_code IS NULL
           THEN
               p_svrtreq_date_ind := 'IT';

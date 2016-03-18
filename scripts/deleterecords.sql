@@ -19,3 +19,19 @@ BEGIN
 	COMMIT;
     
 END ;
+
+
+/********DELETE RECORDS BY TRACKINGID*******************/
+BEGIN
+
+    DELETE FROM svrtnte WHERE svrtnte_bgn02 = :pTrackingId;
+
+    DELETE FROM shttran WHERE shttran_bgn02 = :pTrackingId;
+    
+    DELETE FROM xml_agency WHERE xml_agency_requesttrackingid = :pTrackingId;
+    
+    DELETE FROM georgian.xml_transcripts WHERE request_tracking_id = :pTrackingId;
+
+    DELETE FROM svrtreq where svrtreq_bgn02 = :pTrackingId;
+
+END;
