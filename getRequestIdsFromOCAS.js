@@ -32,7 +32,7 @@ function start(processJobConfig, createJobConfig) {
 
   function processJob(job, cb) {
     ocasLogin.onLogin(function (err, authToken) {
-      if (err) {
+      if (err && !ddpClient.isEmpty(err)) {
         job.fail({task: "ocasAcquireAuthToken", exception: err});
         cb();
         return;
@@ -44,7 +44,7 @@ function start(processJobConfig, createJobConfig) {
           return request.RequestID;
         });
         ddpClient.call("findRedundantJobs", [createJobConfig.root, {"data.ocasRequestId": {$in: requestIds}, status: {$ne: "failed"}}, {"data.ocasRequestId": 1}], function (err, redundantJobs) {
-          if (err) {
+          if (err && !ddpClient.isEmpty(err)) {
             job.fail({task: "findRedundantJobs", exception: err});
             cb();
             return;
@@ -89,7 +89,7 @@ function start(processJobConfig, createJobConfig) {
       };
       request(ocasRequestOptions, function (error, response, body) {
         var responseStatus = response ? response.statusCode : null;
-        if (error || (responseStatus != 200)) {
+        if ((error && !ddpClient.isEmpty(error)) || (responseStatus != 200)) {
           job.fail({
             task: "get $($ocasRequestOptions.ocasUrl)",
             exception: error,

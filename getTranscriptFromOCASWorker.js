@@ -40,7 +40,7 @@ function processJob(job, cb) {
     };
     request(httpOptions, function (err, response, body) {
       var responseStatus = response ? response.statusCode : null;
-      if (err || responseStatus != 200) {
+      if ((err && !ddp.isEmpty(err)) || responseStatus != 200) {
         var failureDetail = {
           task: "ocasGetTranscriptDetail"
           , exception: err
@@ -69,7 +69,7 @@ function processJob(job, cb) {
         description: "getTranscriptFromOCAS job created me",
         pescCollegeTranscriptXML: transcriptDetails.PESCXml
       }], function (err, transcriptId) {
-        if (err) {
+        if (err && !ddp.isEmpty(err)) {
           // todo: Depends on why it can't save. Maybe it was a temporary system state and nothing wrong with the data provided by OCAS.
           job.fail({task: "createTranscript", exception: err, data: transcriptDetails});
           cb();
@@ -85,7 +85,7 @@ function processJob(job, cb) {
         }); // try once a minute.
         // Commit it to the server
         sendInboundTranscriptAcknowledgmentToOCAS.save(function (err, result) {
-          if (err) {
+          if (err && !ddp.isEmpty(err)) {
             job.fail({task: "createJob", exception: err, data: sendInboundTranscriptAcknowledgmentToOCAS});
             cb();
             return;
@@ -101,7 +101,7 @@ function processJob(job, cb) {
           }); // try once a day.
           // Commit it to the server
           updateTranscriptWithApplicantJob.save(function (err, result) {
-            if (err) {
+            if (err && !ddp.isEmpty(err)) {
               job.fail({task: "createJob", exception: err, data: updateTranscriptWithApplicantJob});
               cb();
               return;
@@ -111,7 +111,7 @@ function processJob(job, cb) {
             saveTranscriptJob.priority('normal').retry({retries: Job.forever, wait: 30 * 1000, backoff: 'exponential'}); // 30 second exponential backoff
             // Commit it to the server
             saveTranscriptJob.save(function (err, jobId) {
-              if (err) {
+              if (err && !ddp.isEmpty(err)) {
                 job.fail({task: "createJob", exception: err, data: saveTranscriptJob});
               } else {
                 job.done();

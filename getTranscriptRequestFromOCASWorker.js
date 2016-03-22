@@ -21,7 +21,7 @@ function processJob(job, cb) {
     cb();
   }
   ocasLogin.onLogin(function(err, authToken){
-    if (err) {
+    if (err && !ddpLogin.isEmpty(err)) {
       job.fail({task:"ocasAcquireAuthToken", exception:err});
       cb();
     } else {
@@ -33,7 +33,7 @@ function processJob(job, cb) {
       };
       request(httpOptions, function (error, response, body) {
         var responseStatus = response ? response.statusCode : null;
-        if (error || (responseStatus != 200)) {
+        if ((error  && !ddpLogin.isEmpty(error))|| (responseStatus != 200)) {
           //todo: maybe we should interrogate the response and stop retrying if it's a problem with our request data; ocasRequestId !!
           job.fail({
             task: "ocasGetTranscriptRequestDetail",
@@ -51,7 +51,7 @@ function processJob(job, cb) {
         transcriptRequestsJob.priority('normal').retry({retries: Job.forever, wait: 60 * 1000, backoff: 'exponential'}); // 60 second exponential backoff
         // Commit it to the server
         transcriptRequestsJob.save(function (err, result) {
-          if (err) {
+          if (err && !ddpLogin.isEmpty(err)) {
             job.fail({task: "createJob", exception: err, data: transcriptRequestsJob});
           } else {
             job.done({result:result});
