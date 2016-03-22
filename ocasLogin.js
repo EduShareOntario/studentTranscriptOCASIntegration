@@ -6,7 +6,7 @@ var ocas = {
     request.post(config.settings.loginUrl, { form: { Username: config.settings.userName, Password: config.settings.passWord, grant_type: config.settings.grantType } }, function(err,response, body) {
       var responseStatus = response ? response.statusCode : null;
       var authToken;
-      if (!err && responseStatus != 200) {
+      if (responseStatus != 200) {
         err = {task:"Authentication failed.", error: err, response:response};
       }
       if (!err) {
