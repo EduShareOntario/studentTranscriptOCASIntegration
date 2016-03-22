@@ -39,7 +39,7 @@ function processJob(job, cb) {
       }
     };
     request(httpOptions, function (error, response, body) {
-      var responseStatus = response ? response.status : null;
+      var responseStatus = response ? response.statusCode : null;
       if (err || responseStatus != 200) {
         var failureDetail = {
           task: "ocasGetTranscriptDetail"

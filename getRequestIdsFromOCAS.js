@@ -88,7 +88,7 @@ function start(processJobConfig, createJobConfig) {
         }
       };
       request(ocasRequestOptions, function (error, response, body) {
-        var responseStatus = response ? response.status : null;
+        var responseStatus = response ? response.statusCode : null;
         if (error || (responseStatus != 200)) {
           job.fail({
             task: "get $($ocasRequestOptions.ocasUrl)",

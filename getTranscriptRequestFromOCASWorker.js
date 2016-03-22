@@ -32,7 +32,7 @@ function processJob(job, cb) {
         }
       };
       request(httpOptions, function (error, response, body) {
-        var responseStatus = response ? response.status : null;
+        var responseStatus = response ? response.statusCode : null;
         if (error || (responseStatus != 200)) {
           //todo: maybe we should interrogate the response and stop retrying if it's a problem with our request data; ocasRequestId !!
           job.fail({

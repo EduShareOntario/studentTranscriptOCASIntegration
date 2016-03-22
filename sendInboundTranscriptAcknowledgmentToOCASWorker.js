@@ -104,7 +104,7 @@ function processJob(job, cb) {
         }
         // Ok, we have a Transcript saved, now it's time to tell OCAS so they don't send it again.
         ocas.sendAcknowledgmentToOCAS(authToken, transcript, function (err, response, httpOptions) {
-          var responseStatus = response ? response.status : null;
+          var responseStatus = response ? response.statusCode : null;
           if (err || responseStatus != 200) {
             // scrub logged data
             httpOptions.headers.Authorization = "scrubbed";
