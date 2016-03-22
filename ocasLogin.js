@@ -9,11 +9,11 @@ var ocas = {
       if (!err && responseStatus != 200) {
         error = {task:"Authentication failed.", error: err, response:response};
       }
-      if (!error) {
+      if (!err) {
         var tokenInfo = JSON.parse(body);
         authToken = tokenInfo.token_type + " " + tokenInfo.access_token;
       }
-      cb(error, authToken);
+      cb(err, authToken);
     });
   }
 };
