@@ -54,7 +54,8 @@ function ddpLoginCB(err) {
 
 function checkForTranscriptsToSend() {
     request.post(config.settings.loginUrl, { form: { Username: config.settings.userName, Password: config.settings.passWord, grant_type: config.settings.grantType } }, function (error, response, body) {
-        if (!error && response.statusCode == 200) {
+        var responseStatus = response ? response.status : null;
+        if (!error && responseStatus == 200) {
             var fbResponse = JSON.parse(body);
             authToken = fbResponse.token_type + " " + fbResponse.access_token;
             
@@ -67,18 +68,19 @@ function checkForTranscriptsToSend() {
             };
             
             function sendTranscript(error, response, body) {
-                if (!error && response.statusCode == 200) {
+                var responseStatus = response ? response.status : null;
+                if (!error && responseStatus == 200) {
                     var transcriptDetails = JSON.parse(body);
                     console.log("here we are");
                 } else {
-                    console.log("Got an error: ", error, ", status code: ", response.statusCode);
+                    console.log("Got an error: ", error, ", status code: ", responseStatus);
                 }
             }
             
             request.post(options, sendTranscript);
 
         } else {
-            console.log("Got an error: ", error, ", status code: ", response.statusCode);
+            console.log("Got an error: ", error, ", status code: ", responseStatus);
         }
     });
 }

@@ -4,9 +4,10 @@ var config = require('app-config');
 var ocas = {
   onLogin : function onLogin(cb) {
     request.post(config.settings.loginUrl, { form: { Username: config.settings.userName, Password: config.settings.passWord, grant_type: config.settings.grantType } }, function(error,response, body) {
+      var responseStatus = response ? response.status : null;
       var authToken;
-      if (!error && response.statusCode != 200) {
-        error = new Error("Authentication failed." + JSON.stringify(result));
+      if (!error && responseStatus != 200) {
+        error = new Error("Authentication failed." + JSON.stringify(response));
       }
       if (!error) {
         var tokenInfo = JSON.parse(body);

@@ -32,9 +32,15 @@ function processJob(job, cb) {
         }
       };
       request(httpOptions, function (error, response, body) {
-        if (error || response.statusCode != 200) {
+        var responseStatus = response ? response.status : null;
+        if (error || (responseStatus != 200)) {
           //todo: maybe we should interrogate the response and stop retrying if it's a problem with our request data; ocasRequestId !!
-          job.fail({task:"ocasGetTranscriptRequestDetail", exception:error, responseStatus: response.statusCode, data: body});
+          job.fail({
+            task: "ocasGetTranscriptRequestDetail",
+            exception: error,
+            responseStatus: responseStatus,
+            data: body
+          });
           cb();
           return;
         }

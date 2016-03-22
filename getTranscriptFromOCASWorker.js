@@ -39,8 +39,8 @@ function processJob(job, cb) {
       }
     };
     request(httpOptions, function (error, response, body) {
-      var errorOccured = err || (response && response.statusCode != 200);
-      if (errorOccured) {
+      var responseStatus = response ? response.status : null;
+      if (err || responseStatus != 200) {
         var failureDetail = {
           task: "ocasGetTranscriptDetail"
           , exception: err
@@ -50,10 +50,10 @@ function processJob(job, cb) {
           failureDetail.response = {
             headers: response.headers
             , body: response.body
-            , statusCode: response.statusCode
+            , statusCode: responseStatus
           };
           var failOptions = {};
-          if (response.statusCode >= 400 && response.statusCode < 500) {
+          if (responseStatus >= 400 && responseStatus < 500) {
             // No point retrying this job because something is wrong with our request
             failOptions.fatal = true;
           }

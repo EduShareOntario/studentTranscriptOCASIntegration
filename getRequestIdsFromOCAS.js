@@ -88,12 +88,13 @@ function start(processJobConfig, createJobConfig) {
         }
       };
       request(ocasRequestOptions, function (error, response, body) {
-        if (error || response.statusCode != 200) {
+        var responseStatus = response ? response.status : null;
+        if (error || (responseStatus != 200)) {
           job.fail({
             task: "get $($ocasRequestOptions.ocasUrl)",
             exception: error,
-            responseStatus: response.statusCode,
-            data: body
+            responseStatus: responseStatus,
+            body: body
           });
           cb();
           return;
