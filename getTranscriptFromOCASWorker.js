@@ -38,7 +38,7 @@ function processJob(job, cb) {
         'Authorization': authToken
       }
     };
-    request(httpOptions, function (error, response, body) {
+    request(httpOptions, function (err, response, body) {
       var responseStatus = response ? response.statusCode : null;
       if (err || responseStatus != 200) {
         var failureDetail = {
