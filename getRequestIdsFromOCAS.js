@@ -91,7 +91,7 @@ function start(processJobConfig, createJobConfig) {
         var responseStatus = response ? response.statusCode : null;
         if ((error && !ddpLogin.isEmpty(error)) || responseStatus != 200) {
           job.fail({
-            task: "get " + ocasRequestOptions.ocasUrl,
+            task: "get " + ocasRequestOptions.url,
             exception: error,
             responseStatus: responseStatus,
             body: body
