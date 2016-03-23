@@ -14,16 +14,16 @@ ddpLogin.onSuccess(function (ddpConnection){
 });
 
 function processJob(job,cb) {
-	ddp.call("getTranscript", [job.data.transcriptId], function(err,transcript){
-		if(err) {
-			console.log(err);
-			job.fail({task:"getTranscript", exception:err});
+	ddp.call("getTranscript", [job.data.transcriptId], function(error,transcript){
+		if(error) {
+			console.log(error);
+			job.fail({task:"getTranscript", exception:error});
 			cb();
 		} else {
-			sendToDocStore(transcript.pescCollegeTranscriptXML, transcript.applicant, function(err, result) {
-				if (err) {
-					console.log(err);
-					job.fail({task:"sendToDocStore", exception:err});
+			sendToDocStore(transcript.pescCollegeTranscriptXML, transcript.applicant, function(error, result) {
+				if (error) {
+					console.log(error);
+					job.fail({task:"sendToDocStore", exception:error});
 				} else {
 					job.done(result);
 				}
@@ -49,31 +49,31 @@ var datetime = currentdate.getFullYear() + "-"
 				var filename = applicant.studentId + '.html';
 				var localFilename = config.settings.localFilePath + filename;
 				var appxtenderFilename = config.settings.appxtenderFilePath + filename;
-				fs.writeFile(localFilename, body, function (err) {
-					if (err) {
-						cb(err);
+				fs.writeFile(localFilename, body, function (error) {
+					if (error) {
+						cb(error);
 						return;
 					}
 						
 					// Now lets tell AppXtender about the transcript.
-					soap.createClient(config.settings.appxtenderURL, {forceSoap12Headers: true}, function(err, client){
-						if(err) {
-							console.log(err);
-							cb(err);
+					soap.createClient(config.settings.appxtenderURL, {forceSoap12Headers: true}, function(error, client){
+						if(error) {
+							console.log(error);
+							cb(error);
 							return;
 						}
 					 
 						//user account that will be used to login to appxtender and create the new document
 						var credentials = {userId: config.settings.appxtenderUser, password: config.settings.appxtenderPass, features: 0};
-						client.Login( credentials, function(err, loginResponse){
-								if(err) {
-									cb(err);
+						client.Login( credentials, function(error, loginResponse){
+								if(error) {
+									cb(error);
 									return;
 								}	else {
 									var sessionTicket = loginResponse.LoginResult;
-									soap.createClient(config.settings.appxtenderURL, {forceSoap12Headers: true}, function(err, soapClient){
-										if(err) {
-											cb(err);
+									soap.createClient(config.settings.appxtenderURL, {forceSoap12Headers: true}, function(error, soapClient){
+										if(error) {
+											cb(error);
 											return;
 										}
 										var appxtenderDocumentCreationData = {
@@ -119,9 +119,9 @@ var datetime = currentdate.getFullYear() + "-"
 										docIndex += '</ax:Fields></ax:QueryItem>';
 
 										var newDocumentPayload = {sessionTicket: sessionTicket, xmlAxDocumentCreationData: creationData, xmlDocIndex: docIndex};
-										soapClient.CreateNewDocument( newDocumentPayload, function(err, response){
-											if(err) {
-												cb(err);
+										soapClient.CreateNewDocument( newDocumentPayload, function(error, response){
+											if(error) {
+												cb(error);
 												return;
 											}
 											console.log('AppXTender Document Success \n ---------------- \n\n ' + response.CreateNewDocumentResult);

@@ -12,10 +12,10 @@ var ddp;
 
 console.log('Update transcript with OCAS Applicant info');
 
-orawrap.createPool(config.settings.dbConfig, function (err, pool){
-  if (err) {
-    console.log("createPool failed with err:"+err);
-    throw err;
+orawrap.createPool(config.settings.dbConfig, function (error, pool){
+  if (error) {
+    console.log("createPool failed with error:"+error);
+    throw error;
   }
   ddpLogin.onSuccess(function (ddpConnection){
     ddp = ddpConnection;
@@ -32,9 +32,9 @@ function processJob(job, cb){
     job.fail({exception:"Job data is invalid. transcriptId is required."});
     cb();
   } else {
-    ddp.call("getTranscript", [transcriptId], function(err, transcript) {
-      if (err) {
-        job.fail({task:"getTranscript by id", exception:err});
+    ddp.call("getTranscript", [transcriptId], function(error, transcript) {
+      if (error) {
+        job.fail({task:"getTranscript by id", exception:error});
         cb();
         return;
       }
@@ -42,7 +42,7 @@ function processJob(job, cb){
       var ocasApplicantId;
       try {
         ocasApplicantId = transcript.pescCollegeTranscript.CollegeTranscript.Student.Person.AgencyAssignedID;
-      } catch (err) {
+      } catch (error) {
       }
       if (!ocasApplicantId) {
         job.fail({
@@ -53,9 +53,9 @@ function processJob(job, cb){
         return;
       }
       var applicantQuery = "select distinct b.spriden_pidm,b.spriden_id,c.spbpers_birth_date,a.svroccc_term_code, b.spriden_first_name, b.spriden_last_name FROM svroccc a,spriden b,spbpers c WHERE a.svroccc_OCAS_APPL_NUM = :ocasApplicantId AND b.spriden_change_ind is null AND b.spriden_pidm = a.svroccc_pidm AND b.spriden_pidm = c.spbpers_pidm order by a.svroccc_term_code";
-      orawrap.execute(applicantQuery, {ocasApplicantId:ocasApplicantId}, function(err, result){
-        if (err) {
-          job.fail({task:"get applicant query", exception:err});
+      orawrap.execute(applicantQuery, {ocasApplicantId:ocasApplicantId}, function(error, result){
+        if (error) {
+          job.fail({task:"get applicant query", exception:error});
           cb();
           return;
         }
@@ -76,9 +76,9 @@ function processJob(job, cb){
           lastName: firstMatch[5]
         };
 
-        ddp.call("setApplicant", [transcriptId, applicant], function(err, result){
-          if (err) {
-            job.fail({task:"setApplicant",exception:err, data: {transcriptId:transcriptId, applicant:applicant}});
+        ddp.call("setApplicant", [transcriptId, applicant], function(error, result){
+          if (error) {
+            job.fail({task:"setApplicant",exception:error, data: {transcriptId:transcriptId, applicant:applicant}});
           }
           job.done();
           cb();

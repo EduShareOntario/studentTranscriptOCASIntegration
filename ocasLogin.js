@@ -3,17 +3,17 @@ var config = require('app-config');
 
 var ocas = {
   onLogin : function onLogin(cb) {
-    request.post(config.settings.loginUrl, { form: { Username: config.settings.userName, Password: config.settings.passWord, grant_type: config.settings.grantType } }, function(err,response, body) {
+    request.post(config.settings.loginUrl, { form: { Username: config.settings.userName, Password: config.settings.passWord, grant_type: config.settings.grantType } }, function(error,response, body) {
       var responseStatus = response ? response.statusCode : null;
       var authToken;
       if (responseStatus != 200) {
-        err = {task:"Authentication failed.", error: err, response:response};
+        error = {task:"Authentication failed.", error: error, response:response};
       }
-      if (!err) {
+      if (!error) {
         var tokenInfo = JSON.parse(body);
         authToken = tokenInfo.token_type + " " + tokenInfo.access_token;
       }
-      cb(err, authToken);
+      cb(error, authToken);
     });
   }
 };

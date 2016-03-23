@@ -31,9 +31,9 @@ function start(processJobConfig, createJobConfig) {
   }
 
   function processJob(job, cb) {
-    ocasLogin.onLogin(function (err, authToken) {
-      if (err && !ddpClient.isEmpty(err)) {
-        job.fail({task: "ocasAcquireAuthToken", exception: err});
+    ocasLogin.onLogin(function (error, authToken) {
+      if (error) {
+        job.fail({task: "ocasAcquireAuthToken", exception: error});
         cb();
         return;
       }
@@ -43,9 +43,9 @@ function start(processJobConfig, createJobConfig) {
         var requestIds = requests.map(function (request) {
           return request.RequestID;
         });
-        ddpClient.call("findRedundantJobs", [createJobConfig.root, {"data.ocasRequestId": {$in: requestIds}, status: {$ne: "failed"}}, {"data.ocasRequestId": 1}], function (err, redundantJobs) {
-          if (err && !ddpClient.isEmpty(err)) {
-            job.fail({task: "findRedundantJobs", exception: err});
+        ddpClient.call("findRedundantJobs", [createJobConfig.root, {"data.ocasRequestId": {$in: requestIds}, status: {$ne: "failed"}}, {"data.ocasRequestId": 1}], function (error, redundantJobs) {
+          if (error) {
+            job.fail({task: "findRedundantJobs", exception: error});
             cb();
             return;
           }
@@ -67,8 +67,8 @@ function start(processJobConfig, createJobConfig) {
                 saveFuture.wait();
                 var jobId = saveFuture.get()
                 return jobId;
-              } catch (err) {
-                errors.push({task: "createJob", exception: err});
+              } catch (error) {
+                errors.push({task: "createJob", exception: error});
               }
             });
             if (errors.length > 0) {
@@ -89,7 +89,7 @@ function start(processJobConfig, createJobConfig) {
       };
       request(ocasRequestOptions, function (error, response, body) {
         var responseStatus = response ? response.statusCode : null;
-        if ((error && !ddpClient.isEmpty(error)) || (responseStatus != 200)) {
+        if ((error && !ddpLogin.isEmpty(error)) || responseStatus != 200) {
           job.fail({
             task: "get $($ocasRequestOptions.ocasUrl)",
             exception: error,

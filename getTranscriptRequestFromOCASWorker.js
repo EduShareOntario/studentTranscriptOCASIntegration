@@ -20,9 +20,9 @@ function processJob(job, cb) {
     job.fail({task:"validate job", exception:"Missing required ocasRequestId"}, {fatal: true});
     cb();
   }
-  ocasLogin.onLogin(function(err, authToken){
-    if (err && !ddpLogin.isEmpty(err)) {
-      job.fail({task:"ocasAcquireAuthToken", exception:err});
+  ocasLogin.onLogin(function(error, authToken){
+    if (error) {
+      job.fail({task:"ocasAcquireAuthToken", exception:error});
       cb();
     } else {
       var httpOptions = {
@@ -50,9 +50,9 @@ function processJob(job, cb) {
         var transcriptRequestsJob = new Job(config.settings.jobCollectionName, 'transcriptRequest', jobData);
         transcriptRequestsJob.priority('normal').retry({retries: Job.forever, wait: 60 * 1000, backoff: 'exponential'}); // 60 second exponential backoff
         // Commit it to the server
-        transcriptRequestsJob.save(function (err, result) {
-          if (err && !ddpLogin.isEmpty(err)) {
-            job.fail({task: "createJob", exception: err, data: transcriptRequestsJob});
+        transcriptRequestsJob.save(function (error, result) {
+          if (error) {
+            job.fail({task: "createJob", exception: error, data: transcriptRequestsJob});
           } else {
             job.done({result:result});
           }

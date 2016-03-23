@@ -89,28 +89,27 @@ function processJob(job, cb) {
     job.fail({exception:"Job data is invalid. transcriptId is required."});
     cb();
   } else {
-    ddpClient.call("getTranscript", [transcriptId], function (err, transcript) {
-      if (err) {
-        job.fail({task: "getTranscript by id", exception: err});
+    ddpClient.call("getTranscript", [transcriptId], function (error, transcript) {
+      if (error) {
+        job.fail({task: "getTranscript by id", exception: error});
         cb();
         return;
       }
-      console.log("getTranscript returned transcript with transmissionData:" + JSON.stringify(transcript.pescCollegeTranscript.TransmissionData));
-      ocas.onLogin(function (err, authToken) {
-        if (err) {
-          job.fail({task: "ocasAcquireAuthToken", exception: err});
+      ocas.onLogin(function (error, authToken) {
+        if (error) {
+          job.fail({task: "ocasAcquireAuthToken", exception: error});
           cb();
           return;
         }
         // Ok, we have a Transcript saved, now it's time to tell OCAS so they don't send it again.
-        ocas.sendAcknowledgmentToOCAS(authToken, transcript, function (err, response, httpOptions) {
+        ocas.sendAcknowledgmentToOCAS(authToken, transcript, function (error, response, httpOptions) {
           var responseStatus = response ? response.statusCode : null;
-          if (err || responseStatus != 200) {
+          if (error || responseStatus != 200) {
             // scrub logged data
             httpOptions.headers.Authorization = "scrubbed";
             var failureDetail = {
               task: "sendAcknowledgmentToOCAS"
-              , exception: err
+              , exception: error
               , request: httpOptions
             }
             if (response) {

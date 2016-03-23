@@ -26,9 +26,9 @@ function processJob(job, cb) {
     job.fail({task: "validate job", exception: "Missing required ocasRequestId"}, {fatal: true});
     cb();
   }
-  ocasLogin.onLogin(function (err, authToken) {
-    if (err) {
-      job.fail({task: "ocasAcquireAuthToken", exception: err});
+  ocasLogin.onLogin(function (error, authToken) {
+    if (error) {
+      job.fail({task: "ocasAcquireAuthToken", exception: error});
       cb();
       return;
     }
@@ -38,12 +38,12 @@ function processJob(job, cb) {
         'Authorization': authToken
       }
     };
-    request(httpOptions, function (err, response, body) {
+    request(httpOptions, function (error, response, body) {
       var responseStatus = response ? response.statusCode : null;
-      if ((err && !ddp.isEmpty(err)) || responseStatus != 200) {
+      if ((error && !ddpLogin.isEmpty(error)) || responseStatus != 200) {
         var failureDetail = {
           task: "ocasGetTranscriptDetail"
-          , exception: err
+          , exception: error
           , request: httpOptions
         }
         if (response) {
@@ -68,10 +68,10 @@ function processJob(job, cb) {
         title: "In-bound Transcript",
         description: "getTranscriptFromOCAS job created me",
         pescCollegeTranscriptXML: transcriptDetails.PESCXml
-      }], function (err, transcriptId) {
-        if (err && !ddp.isEmpty(err)) {
+      }], function (error, transcriptId) {
+        if (error) {
           // todo: Depends on why it can't save. Maybe it was a temporary system state and nothing wrong with the data provided by OCAS.
-          job.fail({task: "createTranscript", exception: err, data: transcriptDetails});
+          job.fail({task: "createTranscript", exception: error, data: transcriptDetails});
           cb();
           return;
         }
@@ -84,9 +84,9 @@ function processJob(job, cb) {
           backoff: 'constant'
         }); // try once a minute.
         // Commit it to the server
-        sendInboundTranscriptAcknowledgmentToOCAS.save(function (err, result) {
-          if (err && !ddp.isEmpty(err)) {
-            job.fail({task: "createJob", exception: err, data: sendInboundTranscriptAcknowledgmentToOCAS});
+        sendInboundTranscriptAcknowledgmentToOCAS.save(function (error, result) {
+          if (error) {
+            job.fail({task: "createJob", exception: error, data: sendInboundTranscriptAcknowledgmentToOCAS});
             cb();
             return;
           }
@@ -100,9 +100,9 @@ function processJob(job, cb) {
             backoff: 'constant'
           }); // try once a day.
           // Commit it to the server
-          updateTranscriptWithApplicantJob.save(function (err, result) {
-            if (err && !ddp.isEmpty(err)) {
-              job.fail({task: "createJob", exception: err, data: updateTranscriptWithApplicantJob});
+          updateTranscriptWithApplicantJob.save(function (error, result) {
+            if (error) {
+              job.fail({task: "createJob", exception: error, data: updateTranscriptWithApplicantJob});
               cb();
               return;
             }
@@ -110,9 +110,9 @@ function processJob(job, cb) {
             saveTranscriptJob.depends([updateTranscriptWithApplicantJob]);
             saveTranscriptJob.priority('normal').retry({retries: Job.forever, wait: 30 * 1000, backoff: 'exponential'}); // 30 second exponential backoff
             // Commit it to the server
-            saveTranscriptJob.save(function (err, jobId) {
-              if (err && !ddp.isEmpty(err)) {
-                job.fail({task: "createJob", exception: err, data: saveTranscriptJob});
+            saveTranscriptJob.save(function (error, jobId) {
+              if (error) {
+                job.fail({task: "createJob", exception: error, data: saveTranscriptJob});
               } else {
                 job.done();
               }
