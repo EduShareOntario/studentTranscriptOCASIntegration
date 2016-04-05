@@ -7,7 +7,7 @@ var ocas = {
       var responseStatus = response ? response.statusCode : null;
       var authToken;
       if (responseStatus != 200) {
-        error = {task:"Authentication failed.", error: error, response:response};
+        error = {task:"Authentication failed.", error: error, response: {status:responseStatus, body:response.body}};
       }
       if (!error) {
         var tokenInfo = JSON.parse(body);
