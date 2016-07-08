@@ -25,8 +25,15 @@ _.extend(ocas, {
   },
   buildAcknowledgmentDocument: function (transcript) {
     function transformedPerson(person, includedElements) {
-      if (!includedElements) return person;
-      return  _.pick(person, includedElements);
+      var transformedPerson = person;
+      if (includedElements) {
+        transformedPerson = _.pick(person, includedElements);
+        var birth = transformedPerson.Birth;
+        if (birth && birth.Birthday) {
+          transformedPerson.Birth.Birthday = birth.Birthday.replace(/^(\d\d)(\d\d)$/, "--$1-$2");
+        }
+      }
+      return transformedPerson;
     }
     //Build Acknowledgment XML doc from inbound Transcript identified in job.
     var collegeTranscript = transcript.pescCollegeTranscript.CollegeTranscript;
