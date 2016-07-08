@@ -24,6 +24,10 @@ _.extend(ocas, {
     return urlTemplate.replace(":requestId",ocasRequestId);
   },
   buildAcknowledgmentDocument: function (transcript) {
+    function transformedPerson(person, includedElements) {
+      if (!includedElements) return person;
+      return  _.pick(person, includedElements);
+    }
     //Build Acknowledgment XML doc from inbound Transcript identified in job.
     var collegeTranscript = transcript.pescCollegeTranscript.CollegeTranscript;
     var acknowledgmentDoc = {
@@ -49,7 +53,7 @@ _.extend(ocas, {
           DocumentProcessCode: config.settings.ocasAcknowledgmentDocumentProcessCode || 'PRODUCTION',
           RequestTrackingID: transcript.ocasRequestId
         },
-        Person: collegeTranscript.Student.Person,
+        Person: transformedPerson(collegeTranscript.Student.Person, config.settings.transcriptAcknowledgmentPersonElements),
         //AcademicSummary: collegeTranscript.Student.AcademicAward.AcademicSummary,
         AcademicAwardTotal: 0,
         CourseTotal:0

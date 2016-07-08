@@ -1,0 +1,24 @@
+<xs:complexType name="AcknowledgmentPersonType">
+    <xs:sequence>
+        <xs:element name="SchoolAssignedPersonID" type="core:SchoolAssignedPersonIDType" minOccurs="0"/>
+        <xs:element name="SIN" type="core:SINIDType" minOccurs="0"/>
+        <xs:element name="NSN" type="core:NSNIDType" minOccurs="0"/>
+        <xs:element name="AgencyAssignedID" type="core:AgencyAssignedIDType" minOccurs="0"/>
+        <xs:element name="AgencyIdentifier" type="core:AgencyIdentifierType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="RecipientAssignedID" type="core:RecipientAssignedIDType" minOccurs="0"/>
+        <xs:element name="SSN" type="core:SSNType" minOccurs="0"/>
+        <xs:element name="PartialSSN" type="core:PartialSSNType" minOccurs="0"/>
+        <xs:element name="Birth" type="AcRec:BirthType" minOccurs="0"/>
+        <xs:element name="Name" type="core:NameType"/>
+        <xs:element name="AlternateName" type="core:NameType" minOccurs="0" maxOccurs="unbounded">
+            <xs:annotation>
+                <xs:documentation>May not be needed</xs:documentation>
+            </xs:annotation>
+        </xs:element>
+        <xs:element name="Contacts" type="AcRec:ContactsType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="Gender" type="core:GenderType" minOccurs="0"/>
+        <xs:element name="Deceased" type="core:DeceasedType" minOccurs="0"/>
+        <xs:element name="Language" type="core:LanguageType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="NoteMessage" type="core:NoteMessageType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+</xs:complexType>
