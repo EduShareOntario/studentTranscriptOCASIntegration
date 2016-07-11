@@ -15,9 +15,8 @@ ddpLogin.onSuccess(function (ddpConnection){
 
 function processJob(job,cb) {
 	ddp.call("getTranscript", [job.data.transcriptId], function(error,transcript){
-		if(error) {
-			console.log(error);
-			job.fail({task:"getTranscript", exception:error});
+		if (error || transcript == undefined) {
+			job.fail({task: "getTranscript by id", exception: error, transcript: transcript});
 			cb();
 		} else {
 			sendToDocStore(transcript.pescCollegeTranscriptXML, transcript.applicant, function(error, result) {

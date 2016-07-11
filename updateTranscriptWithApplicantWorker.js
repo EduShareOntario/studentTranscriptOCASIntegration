@@ -33,8 +33,8 @@ function processJob(job, cb){
     cb();
   } else {
     ddp.call("getTranscript", [transcriptId], function(error, transcript) {
-      if (error) {
-        job.fail({task:"getTranscript by id", exception:error});
+      if (error || transcript == undefined) {
+        job.fail({task: "getTranscript by id", exception: error, transcript: transcript});
         cb();
         return;
       }
