@@ -44,6 +44,33 @@ function processJob(job, cb){
         ocasApplicantId = transcript.pescCollegeTranscript.CollegeTranscript.Student.Person.AgencyAssignedID;
       } catch (error) {
       }
+
+      //Handle the case with multiple AgencyIdentifiers...
+      if(!ocasApplicantId) {
+
+          var agencyIdentifier;
+          var agencyIdentifiers = transcript.pescCollegeTranscript.CollegeTranscript.Student.Person.AgencyIdentifier;
+          for (var idx in agencyIdentifiers) {
+              try {
+                  if(agencyIdentifiers === Array)
+                    agencyIdentifier = agencyIdentifiers[idx];
+                  else
+                    agencyIdentifier = agencyIdentifiers;
+                  if (agencyIdentifier.AgencyCode == "MutuallyDefined" && agencyIdentifier.AgencyName == "OCAS Application Number") {
+                      ocasApplicantId = agencyIdentifier.AgencyAssignedID;
+                      break;
+                  }
+              } catch(e) {
+                  job.fail({
+                      task: "Failed extracting OCAS Applicant ID from agency Identifier array: "+e,
+                      data: transcript.pescCollegeTranscript
+                  });
+                  cb();
+                  return;
+              }
+          }
+      }
+
       if (!ocasApplicantId) {
         job.fail({
           task: "extract OCAS Applicant Id from AgencyAssignedID of transcript",
