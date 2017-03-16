@@ -52,10 +52,11 @@ function processJob(job, cb){
           var agencyIdentifiers = transcript.pescCollegeTranscript.CollegeTranscript.Student.Person.AgencyIdentifier;
           for (var idx in agencyIdentifiers) {
               try {
-                  if(agencyIdentifiers === Array)
+                  if(agencyIdentifiers instanceof Array)
                     agencyIdentifier = agencyIdentifiers[idx];
                   else
                     agencyIdentifier = agencyIdentifiers;
+                  
                   if (agencyIdentifier.AgencyCode == "MutuallyDefined" && agencyIdentifier.AgencyName == "OCAS Application Number") {
                       ocasApplicantId = agencyIdentifier.AgencyAssignedID;
                       break;
