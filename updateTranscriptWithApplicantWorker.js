@@ -59,6 +59,7 @@ function processJob(job, cb){
                   
                   if (agencyIdentifier.AgencyCode == "MutuallyDefined" && agencyIdentifier.AgencyName == "OCAS Application Number") {
                       ocasApplicantId = agencyIdentifier.AgencyAssignedID;
+                      delete agencyIdentifier.AgencyAssignedID; //fix for issue of multiple agencyidentifierId's causing issues with ocas
                       break;
                   }
               } catch(e) {
