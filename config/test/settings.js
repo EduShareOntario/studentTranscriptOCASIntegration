@@ -29,11 +29,25 @@ module.exports = {
         "NoteMessage"
     ],
     ocasAcknowledgmentDocumentProcessCode: "TEST",
-    ddpHost : 'jobcollection.georgiantest.com',
-    ddpPort : '80',
-    ddpUser : 'bob',
-    ddpPassword : 'bobspassword',
-    oracleUserId        : "bob",
-    oraclePassword      : "bobspassword",
-    oracleConnectString : "testrac01-vip.admin.georgianc.on.ca/GSB1"
+    ddpUrl: 'wss://api.georgiancollege.ca/transcript/websocket',
+    ddpUser : 'ddpUsername',
+    ddpPassword : 'ddpPassword',
+    jobCollectionName: 'student-transcript',
+    dbConfig : {
+        user: 'georgianUser',
+        password: 'georgianUserPassword',
+        connectString: 'testrac01-vip.admin.georgianc.on.ca/gsb1',
+        poolMax: 20,
+        poolMin: 2,
+        poolIncrement: 2,
+        poolTimeout: 10
+    },
+    appxtenderURL: 'http://tsdocmgmt01/AppXtenderServices/AxServicesInterface.asmx?WSDL',
+    appxtenderUser: 'xxxxx',
+    appxtenderPass: 'xxxxx',
+    appxtenderDSN: 'GGGG',
+    appxtenderAppId: '522',
+    // The following must point to the same shared filesystem path
+    appxtenderFilePath: "\\\\badocmgmt01\\Documentum/incoming_transcripts/",
+    localFilePath: "\\\\badocmgmt01\\Documentum/incoming_transcripts/"
 }
