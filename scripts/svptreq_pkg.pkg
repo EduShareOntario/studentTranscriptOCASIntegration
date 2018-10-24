@@ -1,5 +1,5 @@
 /*
-	<VERSION>1.0</VERSION>
+	<VERSION>1.1</VERSION>
 	<FILENAME>svptreq_pkg.pkg</FILENAME>
 	<AUTHOR>Georgian College</AUTHOR>
 	<SUMMARY>The Off Count Report (the big one). </SUMMARY>
@@ -1672,7 +1672,6 @@ END matchStudentInfo;
   p_svrtreq_reason_cde :=  NULL;
   p_error_message      :=  NULL;
 
-  log_details('svptreq_pkg:determine_send_date',0,'','starting',p_svrtreq_action_cde || ' ' || p_svrtreq_bgn02);
   
   IF  p_svrtreq_action_cde  = 'R4'
   THEN
@@ -1715,15 +1714,15 @@ END matchStudentInfo;
       'TERM=',
        v_svrtnte_data_value);
 
-	  log_details('svptreq_pkg:determine_send_date',0,'','after calling note',p_svrtreq_bgn02 || ' ' || v_svrtnte_data_value);
+	 
 	   
       IF  v_svrtnte_data_value IS NULL
       THEN
-		log_details('svptreq_pkg:determine_send_date',0,'','null value',p_svrtreq_bgn02 || ' ' || v_svrtnte_data_value);
+	
           p_error_message := 'TNTE - TERM= record not found';
       ELSE
 		v_gtvsdax_term_code := calc_term_code(v_svrtnte_data_value);
-		log_details('svptreq_pkg:determine_send_date',0,'','after calling term',p_svrtreq_bgn02 || ' ' || v_gtvsdax_term_code);
+		
 
           IF  v_gtvsdax_term_code IS NULL
           THEN
@@ -1732,8 +1731,7 @@ END matchStudentInfo;
               get_stvterm_end_date
               (v_gtvsdax_term_code,
                p_svrtreq_send_date);
-				
-			  log_details('svptreq_pkg:determine_send_date',0,'','after calling term end date',p_svrtreq_bgn02 || ' ' || p_svrtreq_send_date || ' ' || v_gtvsdax_term_code);
+							 
               IF  p_svrtreq_send_date IS NULL
               THEN
                   p_svrtreq_date_ind  := 'IT';
@@ -1744,7 +1742,7 @@ END matchStudentInfo;
                   (NULL,
                    'TERM DATE OFFSET',
                    v_gtvsdax_term_date_offset);
-				   log_details('svptreq_pkg:determine_send_date',0,'','after calling translation code',p_svrtreq_bgn02 || ' ' || v_gtvsdax_term_date_offset);
+
                   IF  v_gtvsdax_term_date_offset IS NOT NULL
                   THEN
                       IF  SUBSTR(v_gtvsdax_term_date_offset,1,1) IN ('+','-')
@@ -1800,8 +1798,7 @@ v_svrtnte_data_value             svrtnte.svrtnte_note%TYPE;
   p_svrtreq_date_ind   :=  NULL;
   p_svrtreq_reason_cde :=  NULL;
   p_error_message      :=  NULL;
-
-  log_details('svptreq_pkg:determine_send_date',0,'','starting',p_svrtreq_action_cde || ' ' || p_svrtreq_bgn02 || ' ' || pHoldUntilTerm);
+  
   
   IF  p_svrtreq_action_cde  = 'R4'
   THEN
@@ -1840,15 +1837,15 @@ v_svrtnte_data_value             svrtnte.svrtnte_note%TYPE;
   IF  p_svrtreq_action_cde = 'R3'
   THEN	
       
-	  log_details('svptreq_pkg:determine_send_date',0,'','after calling note',p_svrtreq_bgn02 || ' ' || v_svrtnte_data_value);
+	  
 	   
       IF  pHoldUntilTerm IS NULL
       THEN
-			log_details('svptreq_pkg:determine_send_date',0,'','null value',p_svrtreq_bgn02 || ' ' || v_svrtnte_data_value);
+			
 			p_error_message := 'pHoldUntilTerm is null';
       ELSE
 		v_gtvsdax_term_code := calc_term_code(pHoldUntilTerm);
-		log_details('svptreq_pkg:determine_send_date',0,'','after calling term',p_svrtreq_bgn02 || ' ' || v_gtvsdax_term_code);
+		
           IF  v_gtvsdax_term_code IS NULL
           THEN
               p_svrtreq_date_ind := 'IT';
@@ -1857,7 +1854,7 @@ v_svrtnte_data_value             svrtnte.svrtnte_note%TYPE;
               (v_gtvsdax_term_code,
                p_svrtreq_send_date);
 				
-			  log_details('svptreq_pkg:determine_send_date',0,'','after calling term end date',p_svrtreq_bgn02 || ' ' || p_svrtreq_send_date || ' ' || v_gtvsdax_term_code);
+			 
               IF  p_svrtreq_send_date IS NULL
               THEN
                   p_svrtreq_date_ind  := 'IT';
@@ -1867,8 +1864,7 @@ v_svrtnte_data_value             svrtnte.svrtnte_note%TYPE;
                   get_gtvsdax_translation_code
                   (NULL,
                    'TERM DATE OFFSET',
-                   v_gtvsdax_term_date_offset);
-				   log_details('svptreq_pkg:determine_send_date',0,'','after calling translation code',p_svrtreq_bgn02 || ' ' || v_gtvsdax_term_date_offset);
+                   v_gtvsdax_term_date_offset);				  
                   IF  v_gtvsdax_term_date_offset IS NOT NULL
                   THEN
                       IF  SUBSTR(v_gtvsdax_term_date_offset,1,1) IN ('+','-')
@@ -2430,7 +2426,6 @@ END write_transcript_record;
     /* FOR UPDATE OF svrtreq_state_ind; */
 
  BEGIN
-  log_details('svptreq_pkg:process_refusals',0,'','starting',v_svrtreq_bgn02);
   v_svptreq_seq_no := 0;
 
   OPEN c19;
@@ -2450,8 +2445,7 @@ END write_transcript_record;
          v_svrtreq_id,
          v_svrtreq_reason_cde;
 
-   EXIT WHEN c19%NOTFOUND;
-   log_details('svptreq_pkg:process_refusals',0,'','c19',v_svrtreq_bgn02 || ' ' || ' ' || v_svrtreq_id || ' ' || v_svrtreq_reason_cde);
+   EXIT WHEN c19%NOTFOUND;   
    v_shttran_seq_no := NULL;
    
    IF  SUBSTR(v_svrtreq_bgn02,1,1) = 'C'
@@ -2588,7 +2582,7 @@ END write_transcript_record;
      so set the completion indicator to 175
    */
    
-    log_details('svptreq_pkg:process_refusals',0,'','decision time',v_svrtreq_bgn02 || ' ' || ' ' || v_spriden_pidm  || ' ' || v_svrtreq_reason_cde);
+  
    
 	IF v_spriden_pidm IS NULL THEN
 		v_svrtreq_completion_ind := '175';
@@ -2776,7 +2770,7 @@ EXCEPTION
   p_svrtreq_reason_cde            IN  VARCHAR2) IS
 
  BEGIN
-  log_details('update_svrtreq_record',0,'','UPDATE STATUS',p_svrtreq_bgn02 || ' ' || p_svrtreq_send_date || ' ' || p_svrtreq_state_ind || ' ' || p_svrtreq_completion_ind  );
+   
 
   UPDATE svrtreq
      SET svrtreq_send_date      = NVL(p_svrtreq_send_date,     svrtreq_send_date),
