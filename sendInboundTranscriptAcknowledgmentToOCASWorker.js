@@ -106,6 +106,11 @@ function processJob(job, cb) {
         cb();
         return;
       }
+      if (!transcript.pescCollegeTranscript) {
+        job.fail({task: "screen invalid transcripts", exception:"Transcript is missing pescCollegeTranscript JSON"});
+        cb();
+        return;
+      }
       ocas.onLogin(function (error, authToken) {
         if (error) {
           job.fail({task: "ocasAcquireAuthToken", exception: error});
