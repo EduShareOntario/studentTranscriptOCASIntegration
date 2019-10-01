@@ -18,3 +18,8 @@ db.getCollection('student-transcript.jobs').find({
     {"ocasRequestId": {$in:ocasRequestIds}},
     ]
 })
+
+cJobStatsByMatch({created: {$gte: daysAgo(10) }})
+cJobStatsByMatch({updated: {$gte: daysAgo(10) }})
+
+cJobStatsByMatch( { $or : [ {created: {$gte: daysAgo(10) }}, {updated: {$gte: daysAgo(10) }}] })
